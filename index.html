@@ -12,6 +12,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Firebase v10 (compat mode — works as global variables, no bundler needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --bg:#080C14;--s1:#0F1520;--s2:#172030;--s3:#1E2B40;
@@ -246,6 +249,12 @@ img{display:block}
 <body>
 
 <!-- ── TOPBAR ─────────────────────────────────────────── -->
+<!-- Sync indicator -->
+<div id="syncIndicator" style="display:none;position:fixed;top:0;left:0;right:0;z-index:400;background:rgba(45,127,249,0.95);color:#fff;font-size:12px;font-weight:600;padding:6px 16px;align-items:center;justify-content:center;gap:8px">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+  Syncing with cloud…
+</div>
+
 <div class="topbar">
   <div class="topbar-main">
     <div class="logo" id="logoArea">
@@ -263,6 +272,9 @@ img{display:block}
       <span class="pg-title" id="pgTitle"></span>
     </div>
     <div class="topbar-right">
+      <button class="icon-btn" onclick="refreshData()" id="refreshBtn" title="Refresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+      </button>
       <button class="icon-btn" onclick="goPage('settings')" id="settingsBtn" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -586,7 +598,7 @@ let page = 'quotes';
 let qFilter = 'all';
 let editQId = null;
 let editPId = null;
-let formMoqs = [1000, 5000];
+let formMoqs = [1000];
 let formSelProds = [];
 let formPrices = {}; // {prodId: {moq: price}}
 let tmpImg = null; // base64 for new product image
@@ -595,25 +607,121 @@ let QUOTES = [];
 let PRODUCTS = [];
 let SETTINGS = { lead:'45-60 days', valid:'30 days', inco:'EXW', pay:'T/T 30%+70%' };
 
-const QKEY = 'qi-quotes-v2';
-const PKEY = 'qi-products-v2';
-const SKEY = 'qi-settings-v2';
 const PRESET_MOQS = [500,1000,2000,3000,5000,10000,20000];
 
 // ═══════════════════════════════════════
-// STORAGE (shared cloud)
+// FIREBASE CONFIG & INIT
 // ═══════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyBW5qQIdX28JnjgymoZxY3MjGnTuIocboQ",
+  authDomain: "comart-quotation.firebaseapp.com",
+  projectId: "comart-quotation",
+  storageBucket: "comart-quotation.firebasestorage.app",
+  messagingSenderId: "1020179116858",
+  appId: "1:1020179116858:web:84646675aaaa753352d603"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const COL_Q = 'quotes';
+const COL_P = 'products';
+const COL_S = 'settings';
+
+// ── Loading indicator helpers ──────────
+function showSyncing() { const el=document.getElementById('syncIndicator'); if(el) el.style.display='flex'; }
+function hideSyncing() { const el=document.getElementById('syncIndicator'); if(el) el.style.display='none'; }
+
+// ── Load all data from Firestore ───────
 async function loadAll() {
-  try { const r = await window.storage.get(QKEY,true); if(r) QUOTES = JSON.parse(r.value); } catch(e){QUOTES=[];}
-  try { const r = await window.storage.get(PKEY,true); if(r) PRODUCTS = JSON.parse(r.value); } catch(e){PRODUCTS=[];}
-  try { const r = await window.storage.get(SKEY,true); if(r) SETTINGS = {...SETTINGS,...JSON.parse(r.value)}; } catch(e){}
-  // Seed default products if none
-  if(!PRODUCTS.length) seedDefaultProducts();
-  try { const l = localStorage.getItem('qi-lang-v2'); if(l) lang = l; } catch(e){}
+  showSyncing();
+  try {
+    const [qSnap, pSnap, sDoc] = await Promise.all([
+      db.collection(COL_Q).orderBy('date','asc').get(),
+      db.collection(COL_P).orderBy('createdAt','asc').get(),
+      db.collection(COL_S).doc('main').get()
+    ]);
+    QUOTES   = qSnap.docs.map(d => d.data());
+    PRODUCTS = pSnap.docs.map(d => d.data());
+    if (sDoc.exists) SETTINGS = { ...SETTINGS, ...sDoc.data() };
+  } catch(e) {
+    console.warn('Firestore load error:', e);
+    // Fallback to localStorage on network error
+    try { const q=localStorage.getItem('qi-q-cache'); if(q) QUOTES=JSON.parse(q); } catch(_){}
+    try { const p=localStorage.getItem('qi-p-cache'); if(p) PRODUCTS=JSON.parse(p); } catch(_){}
+  } finally { hideSyncing(); }
+
+  if (!PRODUCTS.length) {
+    seedDefaultProducts();
+    // Save seeded products to Firestore
+    const batch = db.batch();
+    PRODUCTS.forEach(p => batch.set(db.collection(COL_P).doc(p.id), p));
+    await batch.commit().catch(e => console.warn('seed:', e));
+  }
+
+  // Cache locally for offline fallback
+  try { localStorage.setItem('qi-q-cache', JSON.stringify(QUOTES)); } catch(_){}
+  try { localStorage.setItem('qi-p-cache', JSON.stringify(PRODUCTS)); } catch(_){}
+  try { const l=localStorage.getItem('qi-lang-v2'); if(l) lang=l; } catch(_){}
 }
-async function saveQ() { try{ await window.storage.set(QKEY,JSON.stringify(QUOTES),true);}catch(e){} }
-async function saveP() { try{ await window.storage.set(PKEY,JSON.stringify(PRODUCTS),true);}catch(e){} }
-async function saveS() { try{ await window.storage.set(SKEY,JSON.stringify(SETTINGS),true);}catch(e){} }
+
+// ── Save one quote (upsert) ────────────
+async function saveOneQ(id) {
+  const q = QUOTES.find(x => x.id === id);
+  if (!q) return;
+  try {
+    await db.collection(COL_Q).doc(id).set(q);
+    localStorage.setItem('qi-q-cache', JSON.stringify(QUOTES));
+  } catch(e) { console.error('saveOneQ:', e); toast('⚠️ Sync error'); }
+}
+
+// ── Delete one quote ───────────────────
+async function deleteOneQ(id) {
+  try {
+    await db.collection(COL_Q).doc(id).delete();
+    localStorage.setItem('qi-q-cache', JSON.stringify(QUOTES));
+  } catch(e) { console.error('deleteOneQ:', e); }
+}
+
+// ── Save one product ───────────────────
+async function saveOneP(id) {
+  const p = PRODUCTS.find(x => x.id === id);
+  if (!p) return;
+  try {
+    await db.collection(COL_P).doc(id).set(p);
+    localStorage.setItem('qi-p-cache', JSON.stringify(PRODUCTS));
+  } catch(e) { console.error('saveOneP:', e); }
+}
+
+// ── Delete one product ─────────────────
+async function deleteOneP(id) {
+  try {
+    await db.collection(COL_P).doc(id).delete();
+    localStorage.setItem('qi-p-cache', JSON.stringify(PRODUCTS));
+  } catch(e) { console.error('deleteOneP:', e); }
+}
+
+// ── Save settings ──────────────────────
+async function saveS() {
+  try { await db.collection(COL_S).doc('main').set(SETTINGS); }
+  catch(e) { console.error('saveS:', e); toast('⚠️ Sync error'); }
+}
+
+// ── Legacy wrappers (used by bulk ops) ─
+async function saveQ() {
+  try {
+    const batch = db.batch();
+    QUOTES.forEach(q => batch.set(db.collection(COL_Q).doc(q.id), q));
+    await batch.commit();
+    localStorage.setItem('qi-q-cache', JSON.stringify(QUOTES));
+  } catch(e) { console.error('saveQ:', e); toast('⚠️ Sync error'); }
+}
+async function saveP() {
+  try {
+    const batch = db.batch();
+    PRODUCTS.forEach(p => batch.set(db.collection(COL_P).doc(p.id), p));
+    await batch.commit();
+    localStorage.setItem('qi-p-cache', JSON.stringify(PRODUCTS));
+  } catch(e) { console.error('saveP:', e); }
+}
 
 // ═══════════════════════════════════════
 // SEED DEFAULT PRODUCTS (6 Qi chargers)
@@ -927,13 +1035,13 @@ async function saveProd(){
   };
   if(existing) PRODUCTS=PRODUCTS.map(p=>p.id===editProdId?prod:p);
   else PRODUCTS.push(prod);
-  await saveP();
+  await saveOneP(prod.id);
   closeProdModal();renderProductList();toast(t('save'));
 }
 async function deleteProd(){
   if(!confirm('Delete this product?'))return;
   PRODUCTS=PRODUCTS.filter(p=>p.id!==editProdId);
-  await saveP();closeProdModal();renderProductList();toast(t('delete'));
+  await deleteOneP(editProdId);closeProdModal();renderProductList();toast(t('delete'));
 }
 
 // ═══════════════════════════════════════
@@ -942,7 +1050,7 @@ async function deleteProd(){
 function openQuoteForm(id){
   editQId=id;
   const q=id?QUOTES.find(x=>x.id===id):null;
-  formMoqs=q?[...q.moqTiers]:[1000,5000];
+  formMoqs=q?[...q.moqTiers]:[1000];
   formSelProds=q?[...q.products]:[];
   formPrices=q?JSON.parse(JSON.stringify(q.prices||{})):{};
   document.getElementById('f-company').value=q?.company||'';
@@ -1042,12 +1150,12 @@ async function saveQuote(){
   };
   if(editQId) QUOTES=QUOTES.map(x=>x.id===editQId?q:x);
   else QUOTES.push(q);
-  await saveQ();toast(t('save'));renderQuoteList();goBack();
+  await saveOneQ(q.id);toast(t('save'));renderQuoteList();goBack();
 }
 async function deleteQuote(){
   if(!confirm('Delete?'))return;
   QUOTES=QUOTES.filter(x=>x.id!==editQId);
-  await saveQ();toast(t('delete'));renderQuoteList();goPage('quotes');page='quotes';
+  await deleteOneQ(editQId);toast(t('delete'));renderQuoteList();goPage('quotes');page='quotes';
 }
 
 // ═══════════════════════════════════════
@@ -1115,11 +1223,11 @@ function renderDetail(id){
 async function copyQuote(id){
   const q=QUOTES.find(x=>x.id===id);if(!q)return;
   const nq={...JSON.parse(JSON.stringify(q)),id:uid(),ref:uid(),date:new Date().toISOString().slice(0,10),status:'draft'};
-  QUOTES.push(nq);await saveQ();toast(t('copy'));renderQuoteList();openQuoteForm(nq.id);
+  QUOTES.push(nq);await saveOneQ(nq.id);toast(t('copy'));renderQuoteList();openQuoteForm(nq.id);
 }
 async function markSent(id){
   const q=QUOTES.find(x=>x.id===id);if(!q)return;
-  q.status='sent';await saveQ();toast(t('markSent'));renderDetail(id);
+  q.status='sent';await saveOneQ(id);toast(t('markSent'));renderDetail(id);
 }
 
 // ═══════════════════════════════════════
@@ -1237,7 +1345,7 @@ async function downloadXLSX(id) {
       c.font = { ...TNR, bold: true, size: ci < 3 ? 11 : 12 };
       c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       c.border = {
-        top: thin, bottom: thin,
+        top: med, bottom: med,
         left:  ci === 0 ? med : thin,
         right: ci === hdrs.length-1 ? med : thin
       };
@@ -1254,8 +1362,10 @@ async function downloadXLSX(id) {
       if (!p) continue;
 
       const r      = 8 + pi;
-      const isLast = pi === q.products.length - 1;
-      const bot    = isLast ? med : thin;
+      const isFirst = pi === 0;
+      const isLast  = pi === q.products.length - 1;
+      const top     = isFirst ? med : thin;
+      const bot     = isLast  ? med : thin;
       const rh     = rowHeights[pi] ?? 100.0;
       ws.getRow(r).height = rh;
       const ROW_PX = Math.round(rh * 96/72);
@@ -1264,11 +1374,11 @@ async function downloadXLSX(id) {
       const cb = ws.getCell(r, 1);
       cb.value = p.series; cb.font = { ...TNR, bold: true, size: 11 };
       cb.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      cb.border = { top: thin, bottom: bot, left: med, right: thin };
+      cb.border = { top: top, bottom: bot, left: med, right: thin };
 
       // B: Picture (border only, image goes here)
       ws.getCell(r, 2).alignment = { horizontal: 'center', vertical: 'middle' };
-      ws.getCell(r, 2).border = { top: thin, bottom: bot, left: thin, right: thin };
+      ws.getCell(r, 2).border = { top: top, bottom: bot, left: thin, right: thin };
 
       // C: Features = Name (bold) + newline + description (normal)
       const cc = ws.getCell(r, 3);
@@ -1280,7 +1390,7 @@ async function downloadXLSX(id) {
       ] };
       cc.font = { ...TNR, bold: true, size: 12 }; // fallback
       cc.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
-      cc.border = { top: thin, bottom: bot, left: thin, right: thin };
+      cc.border = { top: top, bottom: bot, left: thin, right: thin };
 
       // Price cols
       moqs.forEach((moq, mi) => {
@@ -1290,7 +1400,7 @@ async function downloadXLSX(id) {
         cp.font = { ...TNR, size: 11 };
         cp.numFmt = '#,##0.00';
         cp.alignment = { horizontal: 'center', vertical: 'middle' };
-        cp.border = { top: thin, bottom: bot, left: thin, right: thin };
+        cp.border = { top: top, bottom: bot, left: thin, right: thin };
       });
 
       // Remark
@@ -1298,7 +1408,7 @@ async function downloadXLSX(id) {
       cr.value = p.remark || 'The price only includes product listed. No packaging cost is included.';
       cr.font = { ...TNR, size: 11 };
       cr.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
-      cr.border = { top: thin, bottom: bot, left: thin, right: med };
+      cr.border = { top: top, bottom: bot, left: thin, right: med };
 
       // Product image
       const imgInfo = PROD_IMG_B64[pid];
@@ -1549,13 +1659,20 @@ async function downloadPDF(id) {
       doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
       doc.text(remLines, cx + 1, y + 4);
 
-      // Borders
+      // Borders — outer rect + all internal dividers including Price|Remark
       doc.setDrawColor(180,180,180);
       doc.setLineWidth(0.2);
       doc.rect(ML, y, PW, rowH);
+      // Draw ALL internal vertical dividers
       let dx = ML + colW.code;
-      [colW.pic, colW.feat, ...moqs.map(()=>priceW)].forEach(w => {
-        doc.line(dx, y, dx, y + rowH); dx += w;
+      [colW.pic, colW.feat, ...moqs.map(()=>priceW), colW.remark].forEach((w, wi) => {
+        // Draw the LEFT edge of each column (= right edge of previous)
+        // Skip the last one (it's the right outer border already drawn by rect)
+        const isLast = wi === moqs.length + 3; // code|pic|feat|...prices|remark
+        if (!isLast) {
+          doc.line(dx, y, dx, y + rowH);
+        }
+        dx += w;
       });
       doc.setLineWidth(0.1);
 
@@ -1606,6 +1723,27 @@ async function saveSettings(){
 function exportData(){const blob=new Blob([JSON.stringify({quotes:QUOTES,products:PRODUCTS,settings:SETTINGS},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='qi_data_backup.json';a.click();}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(d.quotes)QUOTES=[...QUOTES,...d.quotes.filter(q=>!QUOTES.find(x=>x.id===q.id))];if(d.products)PRODUCTS=[...PRODUCTS,...d.products.filter(p=>!PRODUCTS.find(x=>x.id===p.id))];if(d.settings)SETTINGS={...SETTINGS,...d.settings};await saveQ();await saveP();await saveS();toast('Imported!');renderQuoteList();renderProductList();}catch(e){toast('Import failed');}};r.readAsText(f);e.target.value='';}
 async function clearAllQuotes(){if(!confirm('Clear all quotations?'))return;QUOTES=[];await saveQ();toast('Cleared');renderQuoteList();}
+
+// ═══════════════════════════════════════
+// REFRESH (pull latest from Firestore)
+// ═══════════════════════════════════════
+async function refreshData() {
+  showSyncing();
+  try {
+    const [qSnap, pSnap] = await Promise.all([
+      db.collection(COL_Q).orderBy('date','asc').get(),
+      db.collection(COL_P).orderBy('createdAt','asc').get()
+    ]);
+    QUOTES   = qSnap.docs.map(d => d.data());
+    PRODUCTS = pSnap.docs.map(d => d.data());
+    localStorage.setItem('qi-q-cache', JSON.stringify(QUOTES));
+    localStorage.setItem('qi-p-cache', JSON.stringify(PRODUCTS));
+    renderQuoteList(); renderProductList();
+    toast('✅ Synced');
+  } catch(e) {
+    toast('⚠️ Sync failed');
+  } finally { hideSyncing(); }
+}
 
 // ═══════════════════════════════════════
 // INIT
