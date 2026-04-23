@@ -259,7 +259,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2026.04.23 16:15</div>
+        <div style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2026.04.23 16:45</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -483,6 +483,7 @@ img{display:block}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script>
 // ═══════════════════════════════════════
 // DEFAULT PRODUCT IMAGES (from Qi xlsx)
@@ -636,12 +637,14 @@ const firebaseConfig = {
 };
 // ── Firebase init (safe — scripts loaded before this runs) ──
 let db = null;
+let storage = null;
 let USE_FIREBASE = false;
 
 if (typeof firebase !== 'undefined') {
   try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    storage = firebase.storage();
     USE_FIREBASE = true;
   } catch(e) {
     console.warn('Firebase init error:', e);
@@ -684,9 +687,9 @@ function startListeners() {
   // Real-time products listener
   _pUnsub = db.collection(COL_P).orderBy('createdAt','asc')
     .onSnapshot({ includeMetadataChanges: false }, snap => {
+      // img is now a Firebase Storage URL — no localStorage needed
       PRODUCTS = snap.docs.map(d => d.data());
       lsSet('qi-p-cache', PRODUCTS);
-      // Don't interrupt product modal if open
       if (!document.getElementById('prodOverlay')?.classList.contains('show')) {
         renderProductList();
       }
@@ -759,23 +762,75 @@ async function deleteOneQ(id) {
   } catch(e) { console.error('deleteOneQ:', e); toast('⚠️ Delete failed — please retry'); }
 }
 
+// ── Upload image to Firebase Storage ──
+async function uploadImgToStorage(prodId, base64DataUrl) {
+  if (!storage || !base64DataUrl) return null;
+  try {
+    // Convert base64 data URL to Blob
+    const res = await fetch(base64DataUrl);
+    const blob = await res.blob();
+    const ext = blob.type.includes('png') ? 'png' : blob.type.includes('webp') ? 'webp' : 'jpg';
+    const ref = storage.ref('products/' + prodId + '.' + ext);
+    await ref.put(blob, { contentType: blob.type });
+    const url = await ref.getDownloadURL();
+    return url;
+  } catch(e) {
+    console.error('uploadImgToStorage:', e);
+    return null;
+  }
+}
+
+// ── Delete image from Firebase Storage ──
+async function deleteImgFromStorage(prodId) {
+  if (!storage) return;
+  const exts = ['jpg', 'png', 'webp'];
+  for (const ext of exts) {
+    try {
+      await storage.ref('products/' + prodId + '.' + ext).delete();
+    } catch(_) {} // ignore if not found
+  }
+}
+
 // ── Save one product (accepts object directly) ──
+// Images uploaded to Firebase Storage → URL saved in Firestore
 async function saveOneP(idOrObj) {
   const p = (typeof idOrObj === 'object') ? idOrObj : PRODUCTS.find(x => x.id === idOrObj);
   if (!p) return;
-  const data = { ...p, updatedAt: Date.now() };
+
+  let imgUrl = p.img || null;
+
+  // If img is base64 (new upload), upload to Firebase Storage
+  if (p.img && p.img.startsWith('data:') && USE_FIREBASE) {
+    showSyncing();
+    const uploadedUrl = await uploadImgToStorage(p.id, p.img);
+    if (uploadedUrl) {
+      imgUrl = uploadedUrl;
+      // Update local PRODUCTS array with the URL
+      const idx = PRODUCTS.findIndex(x => x.id === p.id);
+      if (idx !== -1) PRODUCTS[idx].img = imgUrl;
+    }
+  }
+
+  const data = { ...p, img: imgUrl, updatedAt: Date.now() };
   lsSet('qi-p-cache', PRODUCTS);
   if (!USE_FIREBASE) return;
-  try { await db.collection(COL_P).doc(p.id).set(data); }
-  catch(e) { console.error('saveOneP:', e); toast('⚠️ Product sync error — please retry'); }
+  try {
+    await db.collection(COL_P).doc(p.id).set(data);
+  } catch(e) {
+    console.error('saveOneP:', e);
+    toast('⚠️ Product sync error — please retry');
+  }
 }
 
 // ── Delete one product ─────────────────
 async function deleteOneP(id) {
+  localStorage.removeItem('qi-img-' + id);
   if (!USE_FIREBASE) { lsSet('qi-p-cache', PRODUCTS); return; }
   try {
     await db.collection(COL_P).doc(id).delete();
     lsSet('qi-p-cache', PRODUCTS);
+    // Also delete image from Storage (async, non-blocking)
+    deleteImgFromStorage(id);
   } catch(e) {
     console.error('deleteOneP:', e);
     toast('⚠️ Delete failed — please retry');
