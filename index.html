@@ -988,6 +988,9 @@ function closeProdModal(e){
 // One language tab controls BOTH name + features
 let _pmLang = LANGS[0];
 
+// Translation proxy URL — replace with your Cloudflare Worker URL
+const XLAT_PROXY = 'https://comart.mcsewoody.workers.dev';
+
 // ── Auto-translate helpers ─────────────
 let _translateTimer = null;
 
@@ -997,62 +1000,61 @@ function scheduleTranslate() {
 }
 
 async function doTranslate() {
-  const enNameEl = document.querySelector('[data-field="nameFields"][data-lang="en"]');
-  const enFeatEl = document.querySelector('[data-field="featFields"][data-lang="en"]');
-  const enName = (enNameEl?.value || '').trim();
-  const enFeat = (enFeatEl?.value || '').trim();
+  var enNameEl = document.querySelector('[data-field="nameFields"][data-lang="en"]');
+  var enFeatEl = document.querySelector('[data-field="featFields"][data-lang="en"]');
+  var enName = (enNameEl ? enNameEl.value : '').trim();
+  var enFeat = (enFeatEl ? enFeatEl.value : '').trim();
   if (!enName && !enFeat) return;
 
-  const st = document.getElementById('xlat-status');
-  if (st) { st.textContent = '🌐 Translating…'; st.style.display = 'inline'; }
+  var st = document.getElementById('xlat-status');
+  if (st) { st.textContent = '\u1F310 Translating\u2026'; st.style.display = 'inline'; }
+
+  var langs = ['zh-TW','zh-CN','vi','ja'];
+  var langNames = {'zh-TW':'\u7E41\u9AD4\u4E2D\u6587','zh-CN':'\u7B80\u4F53\u4E2D\u6587','vi':'ti\u1EBFng Vi\u1EC7t','ja':'\u65E5\u672C\u8A9E'};
+  var langList = langs.map(function(c){ return c + ' (' + langNames[c] + ')'; }).join(', ');
+
+  var prompt = 'You are a translator. Translate the product name and description into: ' + langList + '.\n'
+    + 'Reply with ONLY a JSON object. No explanation, no markdown, no code block.\n'
+    + 'Use this exact format: {"name":{"zh-TW":"","zh-CN":"","vi":"","ja":""},"feat":{"zh-TW":"","zh-CN":"","vi":"","ja":""}}\n\n'
+    + 'Product Name (EN): ' + enName + '\n'
+    + 'Description (EN): ' + enFeat;
 
   try {
-    const langs = ['zh-TW','zh-CN','vi','ja'];
-    const langNames = {'zh-TW':'繁體中文','zh-CN':'简体中文','vi':'tiếng Việt','ja':'日本語'};
-    const langList = langs.map(c => c + ' (' + langNames[c] + ')').join(', ');
-
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    var resp = await fetch(XLAT_PROXY, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-dangerous-disable-builtins': 'true'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 1200,
-        messages: [{
-          role: 'user',
-          content: 'Translate into ' + langList + '.
-Respond ONLY with raw JSON (no markdown).
-Format: {"name":{"zh-TW":"","zh-CN":"","vi":"","ja":""},"feat":{"zh-TW":"","zh-CN":"","vi":"","ja":""}}
-
-Product Name (EN): ' + (enName || '') + '
-Description (EN): ' + (enFeat || '')
-        }]
+        messages: [{ role: 'user', content: prompt }]
       })
     });
 
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    const raw = (data.content || []).map(function(b){ return b.text || ''; }).join('');
-    const jsonStr = raw.replace(/```json|```/g, '').trim();
-    const tr = JSON.parse(jsonStr);
+    var data = await resp.json();
+    if (!resp.ok) {
+      throw new Error('API error ' + resp.status + ': ' + JSON.stringify(data));
+    }
+
+    var raw = (data.content || []).map(function(b){ return b.text || ''; }).join('').trim();
+    // Strip markdown code blocks if any
+    raw = raw.replace(/^```[a-z]*\n?/,'').replace(/\n?```$/,'').trim();
+    var tr = JSON.parse(raw);
 
     langs.forEach(function(code) {
       if (tr.name && tr.name[code]) {
-        const el = document.querySelector('[data-field="nameFields"][data-lang="' + code + '"]');
+        var el = document.querySelector('[data-field="nameFields"][data-lang="' + code + '"]');
         if (el) { el.value = tr.name[code]; flashGreen(el); }
       }
       if (tr.feat && tr.feat[code]) {
-        const el = document.querySelector('[data-field="featFields"][data-lang="' + code + '"]');
+        var el = document.querySelector('[data-field="featFields"][data-lang="' + code + '"]');
         if (el) { el.value = tr.feat[code]; flashGreen(el); }
       }
     });
 
-    if (st) { st.textContent = '✅ Done'; setTimeout(function(){ st.style.display='none'; }, 2000); }
+    if (st) { st.textContent = '\u2705 Done'; setTimeout(function(){ st.style.display='none'; }, 2000); }
   } catch(e) {
-    console.warn('Translate error:', e);
-    if (st) { st.textContent = '⚠️ Failed'; setTimeout(function(){ st.style.display='none'; }, 2500); }
+    console.error('Translate failed:', e);
+    if (st) { st.textContent = '\u26A0\uFE0F ' + (e.message||'failed'); setTimeout(function(){ st.style.display='none'; }, 4000); }
   }
 }
 
@@ -1073,7 +1075,7 @@ function bindTranslateEvents() {
 function buildUnifiedML(nameVals, featVals) {
   _pmLang = LANGS[0];
   document.getElementById('pmLangTabs').innerHTML = LANGS.map(function(l) {
-    return '<button class="mlt ' + (l===_pmLang?'on':'') + '" onclick="switchPMLang('' + l + '')">' + LANG_LABELS[l] + '</button>';
+    return '<button class="mlt ' + (l===_pmLang?'on':'') + '" onclick="switchPMLang(\'' + l + '\')">' + LANG_LABELS[l] + '</button>';
   }).join('');
 
   document.getElementById('nameFields').innerHTML = LANGS.map(function(l) {
