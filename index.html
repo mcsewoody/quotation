@@ -258,6 +258,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
+        <div style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2026.04.23 16:00</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -640,8 +641,6 @@ if (typeof firebase !== 'undefined') {
   try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
-    // Enable offline persistence (works even when network drops)
-    db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
     USE_FIREBASE = true;
   } catch(e) {
     console.warn('Firebase init error:', e);
@@ -671,20 +670,25 @@ function startListeners() {
   if (!USE_FIREBASE || _listenersReady) return;
   _listenersReady = true;
 
-  // Listen for quote changes — any device adds/edits/deletes → all devices update
+  // Real-time quotes listener — safe for multi-user editing
   _qUnsub = db.collection(COL_Q).orderBy('date','asc')
-    .onSnapshot(snap => {
+    .onSnapshot({ includeMetadataChanges: false }, snap => {
       QUOTES = snap.docs.map(d => d.data());
       lsSet('qi-q-cache', QUOTES);
-      renderQuoteList();
+      // Only re-render list; don't interrupt active form editing
+      if (page === 'quotes' || page === 'detail') renderQuoteList();
+      else renderQuoteList(); // still update counts in background
     }, err => console.warn('Q listener:', err));
 
-  // Listen for product changes
+  // Real-time products listener
   _pUnsub = db.collection(COL_P).orderBy('createdAt','asc')
-    .onSnapshot(snap => {
+    .onSnapshot({ includeMetadataChanges: false }, snap => {
       PRODUCTS = snap.docs.map(d => d.data());
       lsSet('qi-p-cache', PRODUCTS);
-      renderProductList();
+      // Don't interrupt product modal if open
+      if (!document.getElementById('prodOverlay')?.classList.contains('show')) {
+        renderProductList();
+      }
     }, err => console.warn('P listener:', err));
 }
 
@@ -729,40 +733,52 @@ async function loadAll() {
   startListeners();
 }
 
-// ── Save one quote ─────────────────────
-async function saveOneQ(id) {
-  const q = QUOTES.find(x => x.id === id);
+// ── Save one quote (accepts object directly to avoid stale data) ──
+async function saveOneQ(idOrObj) {
+  const q = (typeof idOrObj === 'object') ? idOrObj : QUOTES.find(x => x.id === idOrObj);
   if (!q) return;
+  // Always stamp updatedAt for conflict detection
+  const data = { ...q, updatedAt: Date.now() };
   lsSet('qi-q-cache', QUOTES);
   if (!USE_FIREBASE) return;
-  try { await db.collection(COL_Q).doc(id).set(q); }
-  catch(e) { console.error('saveOneQ:', e); toast('⚠️ Cloud sync error'); }
+  try {
+    await db.collection(COL_Q).doc(q.id).set(data);
+  } catch(e) {
+    console.error('saveOneQ:', e);
+    toast('⚠️ Cloud sync error — please retry');
+  }
 }
 
 // ── Delete one quote ───────────────────
 async function deleteOneQ(id) {
-  lsSet('qi-q-cache', QUOTES);
-  if (!USE_FIREBASE) return;
-  try { await db.collection(COL_Q).doc(id).delete(); }
-  catch(e) { console.error('deleteOneQ:', e); }
+  if (!USE_FIREBASE) { lsSet('qi-q-cache', QUOTES); return; }
+  try {
+    await db.collection(COL_Q).doc(id).delete();
+    lsSet('qi-q-cache', QUOTES);
+  } catch(e) { console.error('deleteOneQ:', e); toast('⚠️ Delete failed — please retry'); }
 }
 
-// ── Save one product ───────────────────
-async function saveOneP(id) {
-  const p = PRODUCTS.find(x => x.id === id);
+// ── Save one product (accepts object directly) ──
+async function saveOneP(idOrObj) {
+  const p = (typeof idOrObj === 'object') ? idOrObj : PRODUCTS.find(x => x.id === idOrObj);
   if (!p) return;
+  const data = { ...p, updatedAt: Date.now() };
   lsSet('qi-p-cache', PRODUCTS);
   if (!USE_FIREBASE) return;
-  try { await db.collection(COL_P).doc(id).set(p); }
-  catch(e) { console.error('saveOneP:', e); }
+  try { await db.collection(COL_P).doc(p.id).set(data); }
+  catch(e) { console.error('saveOneP:', e); toast('⚠️ Product sync error — please retry'); }
 }
 
 // ── Delete one product ─────────────────
 async function deleteOneP(id) {
-  lsSet('qi-p-cache', PRODUCTS);
-  if (!USE_FIREBASE) return;
-  try { await db.collection(COL_P).doc(id).delete(); }
-  catch(e) { console.error('deleteOneP:', e); }
+  if (!USE_FIREBASE) { lsSet('qi-p-cache', PRODUCTS); return; }
+  try {
+    await db.collection(COL_P).doc(id).delete();
+    lsSet('qi-p-cache', PRODUCTS);
+  } catch(e) {
+    console.error('deleteOneP:', e);
+    toast('⚠️ Delete failed — please retry');
+  }
 }
 
 // ── Save settings ──────────────────────
@@ -1193,15 +1209,24 @@ async function saveProd(){
     defaultPrice,remark,
     createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()
   };
-  if(existing) PRODUCTS=PRODUCTS.map(p=>p.id===editProdId?prod:p);
+  if(existing) PRODUCTS = PRODUCTS.map(p => p.id===editProdId ? prod : p);
   else PRODUCTS.push(prod);
-  await saveOneP(prod.id);
-  closeProdModal();renderProductList();toast(t('save'));
+  // Pass object directly — avoids stale array reads
+  await saveOneP(prod);
+  closeProdModal();
+  renderProductList();
+  toast(t('save'));
 }
 async function deleteProd(){
   if(!confirm('Delete this product?'))return;
-  PRODUCTS=PRODUCTS.filter(p=>p.id!==editProdId);
-  await deleteOneP(editProdId);closeProdModal();renderProductList();toast(t('delete'));
+  const idToDelete = editProdId;
+  // Remove from local array first for instant UI feedback
+  PRODUCTS = PRODUCTS.filter(p => p.id !== idToDelete);
+  closeProdModal();
+  renderProductList();
+  // Then confirm delete in Firestore
+  await deleteOneP(idToDelete);
+  toast(t('delete'));
 }
 
 // ═══════════════════════════════════════
@@ -1327,14 +1352,28 @@ async function saveQuote(){
     moqTiers:[...formMoqs],products:[...formSelProds],
     prices:JSON.parse(JSON.stringify(formPrices)),
   };
-  if(editQId) QUOTES=QUOTES.map(x=>x.id===editQId?q:x);
-  else QUOTES.push(q);
-  await saveOneQ(q.id);toast(t('save'));renderQuoteList();goBack();
+  // Stamp creation/update time
+  if(editQId) {
+    q.createdAt = QUOTES.find(x=>x.id===editQId)?.createdAt || Date.now();
+    QUOTES = QUOTES.map(x => x.id===editQId ? q : x);
+  } else {
+    q.createdAt = Date.now();
+    QUOTES.push(q);
+  }
+  // Pass object directly to avoid stale-array reads
+  await saveOneQ(q);
+  toast(t('save'));
+  renderQuoteList();
+  goBack();
 }
 async function deleteQuote(){
   if(!confirm('Delete?'))return;
-  QUOTES=QUOTES.filter(x=>x.id!==editQId);
-  await deleteOneQ(editQId);toast(t('delete'));renderQuoteList();goPage('quotes');page='quotes';
+  const idToDelete = editQId;
+  QUOTES = QUOTES.filter(x => x.id !== idToDelete);
+  goPage('quotes'); page='quotes';
+  renderQuoteList();
+  await deleteOneQ(idToDelete);
+  toast(t('delete'));
 }
 
 // ═══════════════════════════════════════
@@ -1402,11 +1441,14 @@ function renderDetail(id){
 async function copyQuote(id){
   const q=QUOTES.find(x=>x.id===id);if(!q)return;
   const nq={...JSON.parse(JSON.stringify(q)),id:uid(),ref:uid(),date:new Date().toISOString().slice(0,10),status:'draft'};
-  QUOTES.push(nq);await saveOneQ(nq.id);toast(t('copy'));renderQuoteList();openQuoteForm(nq.id);
+  nq.createdAt = Date.now();
+  QUOTES.push(nq);
+  await saveOneQ(nq);
+  toast(t('copy'));renderQuoteList();openQuoteForm(nq.id);
 }
 async function markSent(id){
   const q=QUOTES.find(x=>x.id===id);if(!q)return;
-  q.status='sent';await saveOneQ(id);toast(t('markSent'));renderDetail(id);
+  q.status='sent';await saveOneQ(q);toast(t('markSent'));renderDetail(id);
 }
 
 // ═══════════════════════════════════════
@@ -1639,7 +1681,14 @@ async function downloadXLSX(id) {
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    const fname = (q.company||'QUOTE').replace(/\s+/g,'').substring(0,20) + '_' + (q.date||'').replace(/-/g,'');
+    // Filename: first 4 chars of company + YYMMDD + 2-digit sequence
+    const fComp = (q.company||'QUOTE').replace(/\s+/g,'').substring(0,4).toUpperCase();
+    const fDate = (q.date||'').replace(/-/g,'').substring(2); // YYMMDD
+    // Count how many quotes share same company+date for sequence number
+    const fSeq  = QUOTES.filter(x => x.company === q.company && x.date === q.date)
+                        .findIndex(x => x.id === q.id) + 1;
+    const fSeqStr = String(fSeq).padStart(2,'0');
+    const fname = fComp + '_' + fDate + '_' + fSeqStr;
     a.download = fname + '.xlsx';
     a.click(); URL.revokeObjectURL(a.href);
     toast('✅ XLSX downloaded!');
@@ -1873,8 +1922,14 @@ async function downloadPDF(id) {
     ];
     pdfRmks.forEach(line => { doc.text(line, ML, y); y += 5; });
 
-    const fname = (q.company||'QUOTE').replace(/\s+/g,'').substring(0,20) + '_' + (q.date||'').replace(/-/g,'');
-    doc.save(fname + '.pdf');
+    // Filename: first 4 chars of company + YYMMDD + 2-digit sequence
+    const fComp2 = (q.company||'QUOTE').replace(/\s+/g,'').substring(0,4).toUpperCase();
+    const fDate2 = (q.date||'').replace(/-/g,'').substring(2);
+    const fSeq2  = QUOTES.filter(x => x.company === q.company && x.date === q.date)
+                         .findIndex(x => x.id === q.id) + 1;
+    const fSeqStr2 = String(fSeq2).padStart(2,'0');
+    const fname2 = fComp2 + '_' + fDate2 + '_' + fSeqStr2;
+    doc.save(fname2 + '.pdf');
     toast('✅ PDF downloaded!');
 
   } catch (err) {
@@ -1914,7 +1969,7 @@ function importData(e){
         const newQ=d.quotes.filter(q=>!QUOTES.find(x=>x.id===q.id));
         for(const q of newQ){
           QUOTES.push(q);
-          await saveOneQ(q.id);
+          await saveOneQ(q);
         }
       }
       // Import products — only add new ones
@@ -1922,7 +1977,7 @@ function importData(e){
         const newP=d.products.filter(p=>!PRODUCTS.find(x=>x.id===p.id));
         for(const p of newP){
           PRODUCTS.push(p);
-          await saveOneP(p.id);
+          await saveOneP(p);
         }
       }
       if(d.settings){SETTINGS={...SETTINGS,...d.settings};await saveS();}
