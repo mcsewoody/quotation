@@ -320,17 +320,7 @@ img{display:block}
       <div class="field"><label id="fl-email">Email</label><input id="f-email" type="email" autocomplete="off"></div>
       <div class="field"><label id="fl-tel">Tel</label><input id="f-tel" autocomplete="off"></div>
     </div>
-    <div class="field-grid">
-      <div class="field">
-        <label id="fl-lang">Quote Language</label>
-        <select id="f-lang">
-          <option value="en">English</option>
-          <option value="zh-TW">繁體中文</option>
-          <option value="zh-CN">简体中文</option>
-          <option value="vi">Tiếng Việt</option>
-          <option value="ja">日本語</option>
-        </select>
-      </div>
+    <div class="field-grid one">
       <div class="field">
         <label id="fl-status">Status</label>
         <select id="f-status">
@@ -344,9 +334,27 @@ img{display:block}
       <div class="field"><label id="fl-pay">Payment</label><input id="f-pay" autocomplete="off"></div>
     </div>
     <div class="field-grid one">
-      <div class="field"><label id="fl-notes">Notes</label><textarea id="f-notes"></textarea></div>
+      <div class="field"><label id="fl-notes">Remarks</label><textarea id="f-notes" rows="6" style="min-height:120px;font-size:12px;line-height:1.6"></textarea></div>
     </div>
   </div>
+
+  <!-- Output Language chips -->
+  <div class="sec-title" id="fl-lang">Output Language</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px" id="langChips">
+    <button class="moq-chip on" data-lang="en"    onclick="setOutLang('en')">EN</button>
+    <button class="moq-chip"    data-lang="zh-TW" onclick="setOutLang('zh-TW')">繁中</button>
+    <button class="moq-chip"    data-lang="zh-CN" onclick="setOutLang('zh-CN')">简中</button>
+    <button class="moq-chip"    data-lang="vi"    onclick="setOutLang('vi')">Việt</button>
+    <button class="moq-chip"    data-lang="ja"    onclick="setOutLang('ja')">日本語</button>
+  </div>
+  <!-- hidden input keeps existing save logic working -->
+  <select id="f-lang" style="display:none">
+    <option value="en">EN</option>
+    <option value="zh-TW">繁中</option>
+    <option value="zh-CN">简中</option>
+    <option value="vi">Việt</option>
+    <option value="ja">日本語</option>
+  </select>
 
   <!-- MOQ -->
   <div class="sec-title" id="fs-moq">Price Tiers</div>
@@ -497,7 +505,7 @@ const UI = {
     all:'All',draft:'Draft',sent:'Sent',
     client:'Client',moqTiers:'Price Tiers',selectProds:'Products',prices:'Unit Prices (USD)',
     company:'Company *',attn:'Contact',email:'Email',tel:'Tel',
-    qlang:'Quote Language',status:'Status',inco:'Incoterm',pay:'Payment',notes:'Notes',
+    qlang:'Output Language',status:'Status',inco:'Incoterm',pay:'Payment',notes:'Notes',
     moqLbl:'Select MOQ:',moqAdd:'+ Add',
     save:'Save',cancel:'Cancel',delete:'Delete',
     download:'Download XLSX',edit:'Edit',copy:'Copy & Edit',markSent:'Mark Sent',
@@ -921,7 +929,10 @@ function renderQuoteList(){
     return `<div class="qlist-item" onclick="openDetail('${q.id}')">
       <div class="qli-thumb">${thumbImg}</div>
       <div class="qli-body">
-        <div class="qli-ref">${q.ref}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <div class="qli-ref">${q.ref}</div>
+          <span style="font-size:9px;padding:1px 6px;border-radius:8px;background:var(--ac2);color:var(--ac);font-weight:600;flex-shrink:0">${{en:'EN','zh-TW':'繁中','zh-CN':'简中',vi:'Việt',ja:'日本'}[q.lang||'en']}</span>
+        </div>
         <div class="qli-name">${q.company||'—'}</div>
         <div class="qli-meta">${q.attn?q.attn+' · ':''}${q.products?.length||0} item${(q.products?.length||0)>1?'s':''} · ${q.moqTiers?.map(fmtMoq).join('/')}</div>
       </div>
@@ -1177,15 +1188,34 @@ function openQuoteForm(id){
   document.getElementById('f-email').value=q?.email||'';
   document.getElementById('f-tel').value=q?.tel||'';
   document.getElementById('f-lang').value=q?.lang||'en';
+  setTimeout(syncLangChips, 0);
   document.getElementById('f-status').value=q?.status||'draft';
   document.getElementById('f-inco').value=q?.inco||SETTINGS.inco||'EXW';
   document.getElementById('f-pay').value=q?.pay||SETTINGS.pay||'T/T 30%+70%';
-  document.getElementById('f-notes').value=q?.notes||'';
+  const defaultRemark = [
+    '1. NO SPARE PARTS',
+    '2. LEAD TIME: ' + (SETTINGS.lead||'50 DAYS'),
+    '3. VALIDITY OF THE QUOTATION IS ' + (SETTINGS.valid||'30 DAYS'),
+    '4. PRICE SUBJECT TO CHANGE WITHOUT NOTICE'
+  ].join('\n');
+  document.getElementById('f-notes').value = q?.notes !== undefined ? q.notes : defaultRemark;
   document.getElementById('delQBtn').style.display=q?'inline-flex':'none';
   renderMoqChips();renderProdPicker();renderPriceTbl();
   applyLang();
   page='form';goPage('form');
 }
+function setOutLang(lang) {
+  document.querySelectorAll('#langChips .moq-chip').forEach(b =>
+    b.classList.toggle('on', b.dataset.lang === lang)
+  );
+  document.getElementById('f-lang').value = lang;
+}
+
+function syncLangChips() {
+  const val = document.getElementById('f-lang').value || 'en';
+  setOutLang(val);
+}
+
 function renderMoqChips(){
   const all=[...new Set([...PRESET_MOQS,...formMoqs])].sort((a,b)=>a-b);
   const wrap=document.getElementById('moqWrap');
@@ -1556,13 +1586,13 @@ async function downloadXLSX(id) {
     ws.getCell(rr, 1).value = 'REMARK:';
     ws.getCell(rr, 1).font = { ...TNR, bold: true, size: 12 };
 
-    const rmks = [
+    // Notes field contains the full remark text (editable by user)
+    const rmks = q.notes ? q.notes.split('\n').filter(l => l.trim()) : [
       '1. NO SPARE PARTS',
       `2. LEAD TIME: ${SETTINGS.lead || '50 DAYS'}`,
       `3. VALIDITY OF THE QUOTATION IS ${SETTINGS.valid || '30 DAYS'}`,
       '4. PRICE SUBJECT TO CHANGE WITHOUT NOTICE',
     ];
-    if (q.notes) rmks.push(q.notes);
     rmks.forEach((rem, ri) => {
       const r2 = rr + 1 + ri;
       ws.getRow(r2).height = 15.6;
@@ -1579,7 +1609,8 @@ async function downloadXLSX(id) {
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${q.ref}_${q.company.replace(/\s+/g,'_')}.xlsx`;
+    const fname = (q.company||'QUOTE').replace(/\s+/g,'').substring(0,20) + '_' + (q.date||'').replace(/-/g,'');
+    a.download = fname + '.xlsx';
     a.click(); URL.revokeObjectURL(a.href);
     toast('✅ XLSX downloaded!');
 
@@ -1804,15 +1835,16 @@ async function downloadPDF(id) {
     doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(40,40,40);
     doc.text('REMARK:', ML, y); y += 5;
     doc.setFont('helvetica','normal'); doc.setFontSize(8);
-    [
+    const pdfRmks = q.notes ? q.notes.split('\n').filter(l => l.trim()) : [
       '1. NO SPARE PARTS',
       `2. LEAD TIME: ${SETTINGS.lead || '50 DAYS'}`,
       `3. VALIDITY OF THE QUOTATION IS ${SETTINGS.valid || '30 DAYS'}`,
       '4. PRICE SUBJECT TO CHANGE WITHOUT NOTICE',
-      ...(q.notes ? [q.notes] : []),
-    ].forEach(line => { doc.text(line, ML, y); y += 5; });
+    ];
+    pdfRmks.forEach(line => { doc.text(line, ML, y); y += 5; });
 
-    doc.save(`${q.ref}_${q.company.replace(/\s+/g,'_')}.pdf`);
+    const fname = (q.company||'QUOTE').replace(/\s+/g,'').substring(0,20) + '_' + (q.date||'').replace(/-/g,'');
+    doc.save(fname + '.pdf');
     toast('✅ PDF downloaded!');
 
   } catch (err) {
