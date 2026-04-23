@@ -377,10 +377,6 @@ img{display:block}
     <span class="moq-lbl" id="moq-lbl">Select MOQ:</span>
   </div>
 
-  <!-- Products -->
-  <div class="sec-title" id="fs-prods">Products</div>
-  <div class="prod-grid" id="prodPicker"></div>
-
   <!-- Price table -->
   <div id="priceSec" style="display:none">
     <div class="sec-title" id="fs-prices">Unit Prices (USD)</div>
@@ -409,6 +405,13 @@ img{display:block}
       <span id="cancelQlbl">Back</span>
     </button>
   </div>
+
+  <!-- Products — at the bottom of the form -->
+  <div style="margin-top:8px">
+    <div class="sec-title" id="fs-prods">Products</div>
+    <div class="prod-grid" id="prodPicker"></div>
+  </div>
+
 </div>
 
 <!-- ── PAGE: QUOTE DETAIL ──────────────────────────────── -->
@@ -813,6 +816,8 @@ async function saveOneP(idOrObj) {
   // If img is base64 (new upload), upload to Firebase Storage
   if (p.img && p.img.startsWith('data:') && USE_FIREBASE) {
     showSyncing();
+    // Cache base64 in localStorage BEFORE uploading (for PDF/XLSX use)
+    try { localStorage.setItem('qi-img-b64-' + p.id, p.img); } catch(_) {}
     const uploadedUrl = await uploadImgToStorage(p.id, p.img);
     if (uploadedUrl) {
       imgUrl = uploadedUrl;
@@ -820,6 +825,9 @@ async function saveOneP(idOrObj) {
       const idx = PRODUCTS.findIndex(x => x.id === p.id);
       if (idx !== -1) PRODUCTS[idx].img = imgUrl;
     }
+  } else if (p.img && p.img.startsWith('data:')) {
+    // No Firebase — keep base64 in localStorage too
+    try { localStorage.setItem('qi-img-b64-' + p.id, p.img); } catch(_) {}
   }
 
   const data = { ...p, img: imgUrl, updatedAt: Date.now() };
@@ -836,6 +844,7 @@ async function saveOneP(idOrObj) {
 // ── Delete one product ─────────────────
 async function deleteOneP(id) {
   localStorage.removeItem('qi-img-' + id);
+  localStorage.removeItem('qi-img-b64-' + id);
   if (!USE_FIREBASE) { lsSet('qi-p-cache', PRODUCTS); return; }
   try {
     await db.collection(COL_P).doc(id).delete();
@@ -1623,6 +1632,36 @@ const COMART = {
 // ════════════════════════════════════════════════
 // XLSX DOWNLOAD — ExcelJS (full style + image support)
 // ════════════════════════════════════════════════
+
+// ── Get product image as base64 for PDF/XLSX ──
+async function getProdImgB64(pid) {
+  // 1. Try localStorage cache first (most reliable, no CORS)
+  const cached = localStorage.getItem('qi-img-b64-' + pid);
+  if (cached && cached.startsWith('data:')) return cached;
+
+  // 2. Try PROD_IMG_B64 static dict
+  if (PROD_IMG_B64[pid]) return 'data:image/jpeg;base64,' + PROD_IMG_B64[pid].b64;
+
+  // 3. Try fetching Firebase Storage URL
+  const prod = PRODUCTS.find(x => x.id === pid);
+  if (!prod?.img || !prod.img.startsWith('http')) return null;
+
+  try {
+    const resp = await fetch(prod.img, { mode: 'cors' });
+    if (!resp.ok) throw new Error('fetch fail');
+    const blob = await resp.blob();
+    return await new Promise((res, rej) => {
+      const rd = new FileReader();
+      rd.onload = e => res(e.target.result);
+      rd.onerror = () => rej(new Error('reader fail'));
+      rd.readAsDataURL(blob);
+    });
+  } catch(e) {
+    console.warn('getProdImgB64 fetch failed:', e.message);
+    return null;
+  }
+}
+
 async function downloadXLSX(id) {
   const q = QUOTES.find(x => x.id === id);
   if (!q) return;
@@ -1771,38 +1810,20 @@ async function downloadXLSX(id) {
       cr.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
       cr.border = { top: top, bottom: bot, left: thin, right: med };
 
-      // Product image — supports Firebase Storage URL or base64
-      const prod4Img = PRODUCTS.find(x => x.id === pid);
-      const prodImg  = prod4Img?.img || (PROD_IMG_B64[pid] ? 'data:image/jpeg;base64,' + PROD_IMG_B64[pid].b64 : null);
-      if (prodImg) {
+      // Product image via getProdImgB64 (localStorage cache → static dict → fetch)
+      const xlsxImgB64 = await getProdImgB64(pid);
+      if (xlsxImgB64) {
         try {
-          let imgBase64 = prodImg;
-          // If it's a URL (Firebase Storage), use Image+Canvas (avoids CORS fetch issues)
-          if (prodImg.startsWith('http')) {
-            imgBase64 = await new Promise((res, rej) => {
-              const im = new Image();
-              im.crossOrigin = 'anonymous';
-              im.onload = () => {
-                const cv = document.createElement('canvas');
-                cv.width = im.naturalWidth; cv.height = im.naturalHeight;
-                cv.getContext('2d').drawImage(im, 0, 0);
-                res(cv.toDataURL('image/jpeg', 0.92));
-              };
-              im.onerror = () => rej(new Error('img load fail'));
-              im.src = prodImg + (prodImg.includes('?') ? '&' : '?') + '_t=' + Date.now();
-            });
-          }
-          const b64 = imgBase64.replace(/^data:image\/[a-z]+;base64,/, '');
-          const ext = imgBase64.includes('image/png') ? 'png' : imgBase64.includes('image/webp') ? 'webp' : 'jpeg';
-          // Get image natural size via Image element
+          const b64 = xlsxImgB64.replace(/^data:image\/[a-z]+;base64,/, '');
+          const ext = xlsxImgB64.includes('image/png') ? 'png' : xlsxImgB64.includes('image/webp') ? 'webp' : 'jpeg';
           const natSz = await new Promise(res => {
             const im = new Image();
             im.onload = () => res({w: im.naturalWidth, h: im.naturalHeight});
             im.onerror = () => res({w:120, h:120});
-            im.src = imgBase64;
+            im.src = xlsxImgB64;
           });
           let iw = natSz.w || 120, ih = natSz.h || 120;
-          const maxW = COL_PIC_PX - 14, maxH = ROW_PX - 14;  // FIX: use COL_PIC_PX not COL_A_PX
+          const maxW = COL_PIC_PX - 14, maxH = ROW_PX - 14;
           const scale = Math.min(maxW/iw, maxH/ih, 1);
           iw = Math.round(iw * scale); ih = Math.round(ih * scale);
           const imgId = wb.addImage({ base64: b64, extension: ext });
@@ -2013,39 +2034,22 @@ async function downloadPDF(id) {
       doc.text(codeLines, cx + colW.code/2, y + rowH/2 - (codeLines.length-1)*2, { align:'center', baseline:'middle' });
       cx += colW.code;
 
-      // Picture — Firebase Storage URL or fallback base64
-      const pProd = PRODUCTS.find(x => x.id === pid);
-      const pImgSrc = pProd?.img || (PROD_IMG_B64[pid] ? 'data:image/jpeg;base64,' + PROD_IMG_B64[pid].b64 : null);
-      if (pImgSrc) {
+      // Picture via getProdImgB64 (localStorage cache → static dict → fetch)
+      const pdfImgB64 = await getProdImgB64(pid);
+      if (pdfImgB64) {
         try {
-          let pImgData = pImgSrc;
-          if (pImgSrc.startsWith('http')) {
-            pImgData = await new Promise((res, rej) => {
-              const im2 = new Image();
-              im2.crossOrigin = 'anonymous';
-              im2.onload = () => {
-                const cv2 = document.createElement('canvas');
-                cv2.width = im2.naturalWidth; cv2.height = im2.naturalHeight;
-                cv2.getContext('2d').drawImage(im2, 0, 0);
-                res(cv2.toDataURL('image/jpeg', 0.92));
-              };
-              im2.onerror = () => rej(new Error('pdf img fail'));
-              im2.src = pImgSrc + (pImgSrc.includes('?') ? '&' : '?') + '_t=' + Date.now();
-            });
-          }
-          // Get natural size
           const pNat = await new Promise(res => {
             const im3 = new Image();
             im3.onload = () => res({w: im3.naturalWidth, h: im3.naturalHeight});
             im3.onerror = () => res({w:120, h:120});
-            im3.src = pImgData;
+            im3.src = pdfImgB64;
           });
           let piW = pNat.w || 120, piH = pNat.h || 120;
           const pMaxW = colW.pic - 4, pMaxH = rowH - 4;
           const pSc = Math.min(pMaxW/piW, pMaxH/piH, 1);
           piW = Math.round(piW*pSc); piH = Math.round(piH*pSc);
-          const pFmt = pImgData.includes('image/png')?'PNG':pImgData.includes('image/webp')?'WEBP':'JPEG';
-          doc.addImage(pImgData, pFmt, cx + (colW.pic-piW)/2, y + (rowH-piH)/2, piW, piH);
+          const pFmt = pdfImgB64.includes('image/png')?'PNG':pdfImgB64.includes('image/webp')?'WEBP':'JPEG';
+          doc.addImage(pdfImgB64, pFmt, cx + (colW.pic-piW)/2, y + (rowH-piH)/2, piW, piH);
         } catch(pE) { console.warn('PDF img skip:', pE); }
       }
       cx += colW.pic;
