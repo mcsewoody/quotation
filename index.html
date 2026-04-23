@@ -662,6 +662,32 @@ function hideSyncing()  { const el=document.getElementById('syncIndicator'); if(
 function lsGet(key, def=[]) { try { const v=localStorage.getItem(key); return v?JSON.parse(v):def; } catch(_){ return def; } }
 function lsSet(key, val)    { try { localStorage.setItem(key, JSON.stringify(val)); } catch(_){} }
 
+// ── Real-time listeners (auto-sync across all devices) ──
+let _qUnsub = null;
+let _pUnsub = null;
+let _listenersReady = false;
+
+function startListeners() {
+  if (!USE_FIREBASE || _listenersReady) return;
+  _listenersReady = true;
+
+  // Listen for quote changes — any device adds/edits/deletes → all devices update
+  _qUnsub = db.collection(COL_Q).orderBy('date','asc')
+    .onSnapshot(snap => {
+      QUOTES = snap.docs.map(d => d.data());
+      lsSet('qi-q-cache', QUOTES);
+      renderQuoteList();
+    }, err => console.warn('Q listener:', err));
+
+  // Listen for product changes
+  _pUnsub = db.collection(COL_P).orderBy('createdAt','asc')
+    .onSnapshot(snap => {
+      PRODUCTS = snap.docs.map(d => d.data());
+      lsSet('qi-p-cache', PRODUCTS);
+      renderProductList();
+    }, err => console.warn('P listener:', err));
+}
+
 // ── Load all data ──────────────────────
 async function loadAll() {
   showSyncing();
@@ -675,7 +701,6 @@ async function loadAll() {
       QUOTES   = qSnap.docs.map(d => d.data());
       PRODUCTS = pSnap.docs.map(d => d.data());
       if (sDoc.exists) SETTINGS = { ...SETTINGS, ...sDoc.data() };
-      // Update local cache
       lsSet('qi-q-cache', QUOTES);
       lsSet('qi-p-cache', PRODUCTS);
     } catch(e) {
@@ -684,7 +709,6 @@ async function loadAll() {
       PRODUCTS = lsGet('qi-p-cache', []);
     }
   } else {
-    // localStorage mode
     QUOTES   = lsGet('qi-q-cache', []);
     PRODUCTS = lsGet('qi-p-cache', []);
     try { const s=localStorage.getItem('qi-s-cache'); if(s) SETTINGS={...SETTINGS,...JSON.parse(s)}; } catch(_){}
@@ -692,11 +716,17 @@ async function loadAll() {
 
   if (!PRODUCTS.length) {
     seedDefaultProducts();
-    await saveP().catch(()=>{});
+    // Save each default product individually
+    for (const p of PRODUCTS) {
+      await saveOneP(p.id).catch(()=>{});
+    }
   }
 
   try { const l=localStorage.getItem('qi-lang-v2'); if(l) lang=l; } catch(_){}
   hideSyncing();
+
+  // Start real-time listeners after initial load
+  startListeners();
 }
 
 // ── Save one quote ─────────────────────
@@ -1872,8 +1902,63 @@ async function saveSettings(){
 
 // DATA
 function exportData(){const blob=new Blob([JSON.stringify({quotes:QUOTES,products:PRODUCTS,settings:SETTINGS},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='qi_data_backup.json';a.click();}
-function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async ev=>{try{const d=JSON.parse(ev.target.result);if(d.quotes)QUOTES=[...QUOTES,...d.quotes.filter(q=>!QUOTES.find(x=>x.id===q.id))];if(d.products)PRODUCTS=[...PRODUCTS,...d.products.filter(p=>!PRODUCTS.find(x=>x.id===p.id))];if(d.settings)SETTINGS={...SETTINGS,...d.settings};await saveQ();await saveP();await saveS();toast('✅ Imported!');renderQuoteList();renderProductList();}catch(e){toast('Import failed');}};r.readAsText(f);e.target.value='';}
-async function clearAllQuotes(){if(!confirm('Clear all quotations?'))return;QUOTES=[];await saveQ();toast('Cleared');renderQuoteList();}
+function importData(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=async ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      showSyncing();
+      // Import quotes — only add new ones not already in Firebase
+      if(d.quotes){
+        const newQ=d.quotes.filter(q=>!QUOTES.find(x=>x.id===q.id));
+        for(const q of newQ){
+          QUOTES.push(q);
+          await saveOneQ(q.id);
+        }
+      }
+      // Import products — only add new ones
+      if(d.products){
+        const newP=d.products.filter(p=>!PRODUCTS.find(x=>x.id===p.id));
+        for(const p of newP){
+          PRODUCTS.push(p);
+          await saveOneP(p.id);
+        }
+      }
+      if(d.settings){SETTINGS={...SETTINGS,...d.settings};await saveS();}
+      lsSet('qi-q-cache',QUOTES);
+      lsSet('qi-p-cache',PRODUCTS);
+      toast('✅ Imported!');
+      renderQuoteList();renderProductList();
+    }catch(e){
+      console.error(e);
+      toast('Import failed');
+    }finally{
+      hideSyncing();
+    }
+  };
+  r.readAsText(f);
+  e.target.value='';
+}
+async function clearAllQuotes(){
+  if(!confirm('Clear all quotations?'))return;
+  showSyncing();
+  try {
+    // Delete each quote individually from Firestore
+    const ids = QUOTES.map(q => q.id);
+    for (const id of ids) {
+      await deleteOneQ(id);
+    }
+    QUOTES = [];
+    lsSet('qi-q-cache', []);
+    toast('Cleared');
+    renderQuoteList();
+  } catch(e) {
+    toast('⚠️ Error clearing quotes');
+  } finally {
+    hideSyncing();
+  }
+}
 
 // ═══════════════════════════════════════
 // REFRESH (pull latest from Firestore)
