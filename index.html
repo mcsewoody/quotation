@@ -225,10 +225,11 @@ img{display:block}
 /* ── IMG UPLOAD ──────────── */
 .img-upload-zone{border:2px dashed var(--br2);border-radius:var(--rl);aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;background:var(--s2);max-width:160px}
 .img-upload-zone:active{border-color:var(--ac)}
+.img-upload-zone:hover{border-color:var(--ac);opacity:0.85}
 .img-upload-zone img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:6px}
 .img-upload-zone .ph{font-size:30px;z-index:1}
 .img-upload-zone .ph-lbl{font-size:11px;color:var(--tx3);z-index:1}
-.img-upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+/* img-upload-zone input now hidden via display:none */
 
 /* ── MULTILANG INPUT ─────── */
 .multilang-tabs{display:flex;gap:4px;margin-bottom:8px}
@@ -258,7 +259,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2026.04.23 16:00</div>
+        <div style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2026.04.23 16:15</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -433,11 +434,11 @@ img{display:block}
     <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:14px">
       <div>
         <div style="font-size:11px;color:var(--tx3);margin-bottom:6px;font-weight:500">Product Image</div>
-        <div class="img-upload-zone" id="imgZone">
+        <div class="img-upload-zone" id="imgZone" onclick="document.getElementById('imgFileInput').click()">
           <div class="ph" id="imgPh">📷</div>
           <div class="ph-lbl" id="imgLbl">Tap to upload</div>
-          <input type="file" accept="image/*" onchange="handleImgUpload(event)">
         </div>
+        <input type="file" id="imgFileInput" accept="image/*" style="display:none" onchange="handleImgUpload(event)">
         <button class="btn btn-xs btn-outline" style="margin-top:6px;width:100%" onclick="clearImg()">Remove</button>
       </div>
       <div style="flex:1">
@@ -1028,8 +1029,17 @@ function openProdModal(id){
   const zone=document.getElementById('imgZone');
   const ph=document.getElementById('imgPh');
   const lbl=document.getElementById('imgLbl');
-  if(p?.img){zone.style.background='none';ph.style.display='none';lbl.style.display='none';if(!zone.querySelector('.preview-img')){const i=document.createElement('img');i.className='preview-img';i.src=p.img;zone.appendChild(i);}}
-  else{ph.style.display='';lbl.style.display='';const pi=zone.querySelector('.preview-img');if(pi)pi.remove();}
+  if(p?.img){
+    tmpImg = p.img; // preserve existing image in tmpImg so saveProd always has it
+    zone.style.background='none';ph.style.display='none';lbl.style.display='none';
+    if(!zone.querySelector('.preview-img')){
+      const i=document.createElement('img');i.className='preview-img';i.src=p.img;zone.appendChild(i);
+    }
+  } else {
+    tmpImg = null;
+    ph.style.display='';lbl.style.display='';
+    const pi=zone.querySelector('.preview-img');if(pi)pi.remove();
+  }
   // Build multilang tabs & fields
   buildUnifiedML(p?.name||{}, p?.features||{});
   document.getElementById('prodOverlay').classList.add('show');
