@@ -433,7 +433,7 @@ img{display:block}
     <button class="btn btn-danger btn-sm" onclick="clearAllQuotes()">Clear Quotes</button>
   </div>
   <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
-  <div class="btn-row"><button class="btn btn-primary" onclick="saveSettings()"><span id="sg-save">Save Settings</span></button></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="saveSettings()"><span id="sg-save">Save Settings</span></button><button class="btn btn-ghost" onclick="precacheAllImages()">🖼 Cache Images for PDF/XLSX</button></div>
 </div>
 
 <!-- ── PRODUCT MODAL ───────────────────────────────────── -->
@@ -1298,11 +1298,18 @@ async function saveProd(){
   const imgVal=tmpImg==='__CLEAR__'?null:(tmpImg||existing?.img||null);
   const defaultPrice=parseFloat(document.getElementById('pm-price').value)||null;
   const remark=document.getElementById('pm-remark').value.trim();
+  const prodId = existing?.id || uid();
   const prod={
-    id:existing?.id||uid(),series,name,features,img:imgVal,
+    id:prodId,series,name,features,img:imgVal,
     defaultPrice,remark,
     createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()
   };
+  // Cache base64 to localStorage NOW (before upload changes img to URL)
+  if (tmpImg && tmpImg !== '__CLEAR__' && tmpImg.startsWith('data:')) {
+    try { localStorage.setItem('qi-img-b64-' + prodId, tmpImg); } catch(_) {}
+  } else if (tmpImg === '__CLEAR__') {
+    localStorage.removeItem('qi-img-b64-' + prodId);
+  }
   if(existing) PRODUCTS = PRODUCTS.map(p => p.id===editProdId ? prod : p);
   else PRODUCTS.push(prod);
   // Pass object directly — avoids stale array reads
@@ -1637,29 +1644,68 @@ const COMART = {
 async function getProdImgB64(pid) {
   // 1. Try localStorage cache first (most reliable, no CORS)
   const cached = localStorage.getItem('qi-img-b64-' + pid);
-  if (cached && cached.startsWith('data:')) return cached;
+  if (cached && cached.startsWith('data:')) {
+    console.log('IMG [' + pid + ']: from localStorage cache ✅');
+    return cached;
+  }
 
   // 2. Try PROD_IMG_B64 static dict
-  if (PROD_IMG_B64[pid]) return 'data:image/jpeg;base64,' + PROD_IMG_B64[pid].b64;
+  if (PROD_IMG_B64[pid]) {
+    console.log('IMG [' + pid + ']: from static dict ✅');
+    return 'data:image/jpeg;base64,' + PROD_IMG_B64[pid].b64;
+  }
 
   // 3. Try fetching Firebase Storage URL
   const prod = PRODUCTS.find(x => x.id === pid);
-  if (!prod?.img || !prod.img.startsWith('http')) return null;
+  console.log('IMG [' + pid + ']: img URL =', prod?.img);
+  if (!prod?.img || !prod.img.startsWith('http')) {
+    console.warn('IMG [' + pid + ']: no URL, skipping ❌');
+    return null;
+  }
 
   try {
+    console.log('IMG [' + pid + ']: fetching URL…');
     const resp = await fetch(prod.img, { mode: 'cors' });
-    if (!resp.ok) throw new Error('fetch fail');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
-    return await new Promise((res, rej) => {
+    const b64 = await new Promise((res, rej) => {
       const rd = new FileReader();
       rd.onload = e => res(e.target.result);
       rd.onerror = () => rej(new Error('reader fail'));
       rd.readAsDataURL(blob);
     });
+    // Cache for next time
+    try { localStorage.setItem('qi-img-b64-' + pid, b64); } catch(_) {}
+    console.log('IMG [' + pid + ']: fetched & cached ✅');
+    return b64;
   } catch(e) {
-    console.warn('getProdImgB64 fetch failed:', e.message);
+    console.error('IMG [' + pid + ']: fetch FAILED ❌', e.message);
     return null;
   }
+}
+
+// ── Pre-cache all product images (call from Settings or on load) ──
+async function precacheAllImages() {
+  let ok = 0, fail = 0;
+  for (const p of PRODUCTS) {
+    if (!p.img || p.img.startsWith('data:')) continue;
+    const cached = localStorage.getItem('qi-img-b64-' + p.id);
+    if (cached) { ok++; continue; }
+    try {
+      const resp = await fetch(p.img, { mode: 'cors' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const blob = await resp.blob();
+      const b64 = await new Promise((res, rej) => {
+        const rd = new FileReader();
+        rd.onload = e => res(e.target.result);
+        rd.onerror = () => rej(new Error('reader fail'));
+        rd.readAsDataURL(blob);
+      });
+      localStorage.setItem('qi-img-b64-' + p.id, b64);
+      ok++;
+    } catch(e) { console.error('precache fail:', p.id, e.message); fail++; }
+  }
+  toast(ok + ' images cached' + (fail ? ', ' + fail + ' failed' : '') + ' ✅');
 }
 
 async function downloadXLSX(id) {
