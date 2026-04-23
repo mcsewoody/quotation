@@ -108,7 +108,7 @@ img{display:block}
 .field-grid.one{grid-template-columns:1fr}
 .field-grid.three{grid-template-columns:1fr 1fr 1fr}
 .field{display:flex;flex-direction:column;gap:5px}
-.field label{font-size:11px;color:var(--tx3);font-weight:500;letter-spacing:.04em}
+.field label{font-size:13px;color:var(--tx2);font-weight:700;letter-spacing:.02em}
 .field input,.field select,.field textarea{background:var(--s2);border:1px solid var(--br);border-radius:var(--r);padding:9px 11px;font-size:13px;outline:none;transition:border-color .15s;width:100%}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--ac2)}
 .field input::placeholder,.field textarea::placeholder{color:var(--tx3)}
@@ -259,7 +259,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2026.04.23 16:45</div>
+        <div style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2026.04.23 17:35</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -277,6 +277,14 @@ img{display:block}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
     </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:5px;padding:4px 16px;border-bottom:1px solid var(--br);background:rgba(8,12,20,0.6)">
+    <div style="font-size:10px;color:var(--tx3);margin-right:4px;white-space:nowrap">UI:</div>
+    <button class="lchip" onclick="setLang('en')">EN</button>
+    <button class="lchip" onclick="setLang('zh-TW')">繁中</button>
+    <button class="lchip" onclick="setLang('zh-CN')">简中</button>
+    <button class="lchip" onclick="setLang('vi')">Việt</button>
+    <button class="lchip" onclick="setLang('ja')">日本語</button>
   </div>
   <div class="nav-pills" id="navPills">
     <button class="npill active" data-tab="quotes" onclick="switchTab('quotes')"><span id="np-quotes">Quotations</span> <span class="badge" id="np-cnt-q">0</span></button>
@@ -374,15 +382,26 @@ img{display:block}
     <div class="price-tbl" id="priceTbl"></div>
   </div>
 
-  <div class="btn-row">
+  <div class="btn-row" style="flex-wrap:wrap;gap:8px">
     <button class="btn btn-primary" onclick="saveQuote()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       <span id="saveQlbl">Save</span>
     </button>
-    <button class="btn btn-ghost" onclick="goBack()"><span id="cancelQlbl">Cancel</span></button>
+    <button class="btn btn-ghost" onclick="saveAndDownload('xlsx')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      XLSX
+    </button>
+    <button class="btn btn-ghost" onclick="saveAndDownload('pdf')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h6"/></svg>
+      PDF
+    </button>
     <button class="btn btn-danger btn-sm" id="delQBtn" style="display:none" onclick="deleteQuote()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
       <span id="delQlbl">Delete</span>
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="goBack()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg>
+      <span id="cancelQlbl">Back</span>
     </button>
   </div>
 </div>
@@ -392,19 +411,6 @@ img{display:block}
 
 <!-- ── PAGE: SETTINGS ─────────────────────────────────── -->
 <div class="page" id="pageSettings">
-  <div class="sec-title" id="sg-disp-title">Display</div>
-  <div class="sg">
-    <div class="sg-row">
-      <div class="sg-lbl"><div class="k" id="sg-lang">UI Language</div></div>
-      <div class="lang-row">
-        <button class="lchip" onclick="setLang('en')">EN</button>
-        <button class="lchip" onclick="setLang('zh-TW')">繁中</button>
-        <button class="lchip" onclick="setLang('zh-CN')">简中</button>
-        <button class="lchip" onclick="setLang('vi')">Việt</button>
-        <button class="lchip" onclick="setLang('ja')">日本語</button>
-      </div>
-    </div>
-  </div>
   <div class="sec-title" id="sg-def-title">Default Terms</div>
   <div class="sg">
     <div class="sg-row"><div class="sg-lbl"><div class="k" id="sg-lead">Lead Time</div></div><input class="sg-inp" id="s-lead" placeholder="45-60 days"></div>
@@ -433,7 +439,7 @@ img{display:block}
     <!-- Image upload -->
     <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:14px">
       <div>
-        <div style="font-size:11px;color:var(--tx3);margin-bottom:6px;font-weight:500">Product Image</div>
+        <div style="font-size:13px;color:var(--tx2);margin-bottom:6px;font-weight:700;letter-spacing:.02em">📷 Product Image</div>
         <div class="img-upload-zone" id="imgZone" onclick="document.getElementById('imgFileInput').click()">
           <div class="ph" id="imgPh">📷</div>
           <div class="ph-lbl" id="imgLbl">Tap to upload</div>
@@ -451,9 +457,9 @@ img{display:block}
         </div>
         <!-- Unified language selector -->
         <div>
-          <div style="font-size:11px;color:var(--tx3);margin-bottom:5px;font-weight:500">Language</div>
+          <div style="font-size:13px;color:var(--tx2);margin-bottom:6px;font-weight:700;letter-spacing:.02em">🌐 Language</div>
           <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px" id="pmLangTabs"></div>
-          <div style="font-size:11px;color:var(--tx3);margin-bottom:5px;font-weight:500" id="pm-name-lbl">Item Name</div>
+          <div style="font-size:13px;color:var(--tx2);margin-bottom:6px;font-weight:700;letter-spacing:.02em" id="pm-name-lbl">Item Name</div>
           <div id="nameFields"></div>
         </div>
       </div>
@@ -462,7 +468,7 @@ img{display:block}
     <!-- Features / Description -->
     <div style="margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-        <div style="font-size:11px;color:var(--tx3);font-weight:500" id="pm-feat-lbl">Description / Features</div>
+        <div style="font-size:13px;color:var(--tx2);font-weight:700;letter-spacing:.02em" id="pm-feat-lbl">Description / Features</div>
         <span id="xlat-status" style="display:none;font-size:11px;color:var(--grn);font-weight:600"></span>
       </div>
       <div id="featFields"></div>
@@ -1058,7 +1064,10 @@ function renderProductList(){
       <div class="pm-thumb">${p.img?`<img src="${p.img}" alt="">`:'📦'}</div>
       <div>
         <div class="pm-name">${lx(p.name)}</div>
-        <div class="pm-series">${p.series}${p.defaultPrice?` · $${p.defaultPrice.toFixed(2)}/1K`:''}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
+          <span style="font-size:13px;font-weight:700;color:var(--ac);font-family:var(--fm);letter-spacing:.03em">${p.series}</span>
+          ${p.defaultPrice?`<span style="font-size:13px;font-weight:600;color:#3DD68C;font-family:var(--fm)">$${p.defaultPrice.toFixed(2)}<span style="font-size:10px;color:var(--tx3);font-weight:400">/1K</span></span>`:''}
+        </div>
       </div>
       <div class="pm-actions">
         <button class="btn btn-xs btn-outline" onclick="event.stopPropagation();openProdModal('${p.id}')">
@@ -1163,6 +1172,7 @@ async function doTranslate() {
     var tr = JSON.parse(raw);
 
     langs.forEach(function(code) {
+      if (code === 'en') return; // NEVER overwrite EN — EN is always the source
       if (tr.name && tr.name[code]) {
         var el = document.querySelector('[data-field="nameFields"][data-lang="' + code + '"]');
         if (el) { el.value = tr.name[code]; flashGreen(el); }
@@ -1181,9 +1191,10 @@ async function doTranslate() {
 }
 
 function flashGreen(el) {
-  el.style.transition = 'background 0.3s';
-  el.style.background = 'rgba(61,214,140,0.2)';
-  setTimeout(function(){ el.style.background = ''; }, 800);
+  // Subtle flash without inverting text color
+  el.style.transition = 'border-color 0.3s';
+  el.style.borderColor = 'rgba(61,214,140,0.8)';
+  setTimeout(function(){ el.style.borderColor = ''; }, 1200);
 }
 
 function bindTranslateEvents() {
@@ -1429,7 +1440,9 @@ async function saveQuote(){
   await saveOneQ(q);
   toast(t('save'));
   renderQuoteList();
-  goBack();
+  // Stay on form after save; update delete button visibility
+  document.getElementById('delQBtn').style.display = 'inline-flex';
+  editQId = q.id;
 }
 async function deleteQuote(){
   if(!confirm('Delete?'))return;
@@ -1696,24 +1709,37 @@ async function downloadXLSX(id) {
       cr.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
       cr.border = { top: top, bottom: bot, left: thin, right: med };
 
-      // Product image
-      const imgInfo = PROD_IMG_B64[pid];
-      if (imgInfo) {
-        // Scale image to fit cell
-        const maxW = COL_A_PX - 14;
-        const maxH = ROW_PX   - 14;
-        let iw = imgInfo.w, ih = imgInfo.h;
-        const scale = Math.min(maxW/iw, maxH/ih, 1);
-        iw = Math.round(iw * scale);
-        ih = Math.round(ih * scale);
-
-        const imgId = wb.addImage({ base64: imgInfo.b64, extension: 'jpeg' });
-        // tl in EMU: col offset, row offset (ExcelJS uses col/row + nativeCol/nativeRow for pixel-level)
-        ws.addImage(imgId, {
-          tl: { col: 1 + (COL_PIC_PX - iw)/COL_PIC_PX*0.5, row: (r-1) + (ROW_PX - ih)/(ROW_PX*2) },
-          ext: { width: iw, height: ih },
-          editAs: 'oneCell'
-        });
+      // Product image — supports Firebase Storage URL or base64
+      const prod4Img = PRODUCTS.find(x => x.id === pid);
+      const prodImg  = prod4Img?.img || (PROD_IMG_B64[pid] ? 'data:image/jpeg;base64,' + PROD_IMG_B64[pid].b64 : null);
+      if (prodImg) {
+        try {
+          let imgBase64 = prodImg;
+          // If it's a URL (Firebase Storage), fetch and convert to base64
+          if (prodImg.startsWith('http')) {
+            const imgResp = await fetch(prodImg);
+            const imgBlob = await imgResp.blob();
+            imgBase64 = await new Promise(res => {
+              const rdr = new FileReader();
+              rdr.onload = e => res(e.target.result);
+              rdr.readAsDataURL(imgBlob);
+            });
+          }
+          const b64 = imgBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+          const ext = imgBase64.includes('image/png') ? 'png' : imgBase64.includes('image/webp') ? 'webp' : 'jpeg';
+          // Estimate dimensions from PROD_IMG_B64 or use defaults
+          const iInfo = PROD_IMG_B64[pid];
+          let iw = iInfo ? iInfo.w : 120, ih = iInfo ? iInfo.h : 120;
+          const maxW = COL_A_PX - 14, maxH = ROW_PX - 14;
+          const scale = Math.min(maxW/iw, maxH/ih, 1);
+          iw = Math.round(iw * scale); ih = Math.round(ih * scale);
+          const imgId = wb.addImage({ base64: b64, extension: ext });
+          ws.addImage(imgId, {
+            tl: { col: 1 + (COL_PIC_PX - iw)/COL_PIC_PX*0.5, row: (r-1) + (ROW_PX - ih)/(ROW_PX*2) },
+            ext: { width: iw, height: ih },
+            editAs: 'oneCell'
+          });
+        } catch(imgErr) { console.warn('XLSX img:', imgErr); }
       }
     }
 
