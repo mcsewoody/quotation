@@ -990,95 +990,113 @@ let _pmLang = LANGS[0];
 
 // ── Auto-translate helpers ─────────────
 let _translateTimer = null;
-const TRANS_TARGETS = ['zh-TW','zh-CN','vi','ja'];
-const TRANS_LABELS  = {'zh-TW':'繁體中文','zh-CN':'简体中文','vi':'tiếng Việt','ja':'日本語'};
 
-function scheduleTranslate(field) {
+function scheduleTranslate() {
   clearTimeout(_translateTimer);
-  _translateTimer = setTimeout(() => doTranslate(field), 1500);
+  _translateTimer = setTimeout(doTranslate, 1500);
 }
 
-async function doTranslate(field) {
-  const fid   = field === 'name' ? 'nameFields' : 'featFields';
-  const enEl  = document.querySelector(`[data-field="${fid}"][data-lang="en"]`);
-  const enTxt = enEl?.value?.trim();
-  if (!enTxt) return;
+async function doTranslate() {
+  const enNameEl = document.querySelector('[data-field="nameFields"][data-lang="en"]');
+  const enFeatEl = document.querySelector('[data-field="featFields"][data-lang="en"]');
+  const enName = (enNameEl?.value || '').trim();
+  const enFeat = (enFeatEl?.value || '').trim();
+  if (!enName && !enFeat) return;
 
-  const statusEl = document.getElementById('xlat-status');
-  if (statusEl) { statusEl.textContent = '🌐 Translating…'; statusEl.style.display='inline'; }
+  const st = document.getElementById('xlat-status');
+  if (st) { st.textContent = '🌐 Translating…'; st.style.display = 'inline'; }
 
   try {
-    const langList = TRANS_TARGETS.map(c => `${c} (${TRANS_LABELS[c]})`).join(', ');
+    const langs = ['zh-TW','zh-CN','vi','ja'];
+    const langNames = {'zh-TW':'繁體中文','zh-CN':'简体中文','vi':'tiếng Việt','ja':'日本語'};
+    const langList = langs.map(c => c + ' (' + langNames[c] + ')').join(', ');
+
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'anthropic-dangerous-disable-builtins': 'true',
+        'anthropic-dangerous-disable-builtins': 'true'
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 800,
-        messages: [{ role: 'user', content:
-          `Translate this text into ${langList}.
-Respond ONLY with a JSON object, no markdown, no explanation.
-Format: {"zh-TW":"...","zh-CN":"...","vi":"...","ja":"..."}
+        max_tokens: 1200,
+        messages: [{
+          role: 'user',
+          content: 'Translate into ' + langList + '.
+Respond ONLY with raw JSON (no markdown).
+Format: {"name":{"zh-TW":"","zh-CN":"","vi":"","ja":""},"feat":{"zh-TW":"","zh-CN":"","vi":"","ja":""}}
 
-Text:
-${enTxt}`
+Product Name (EN): ' + (enName || '') + '
+Description (EN): ' + (enFeat || '')
         }]
       })
     });
+
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
-    const raw  = (data.content||[]).map(b=>b.text||'').join('');
-    const m    = raw.match(/\{[\s\S]*\}/);
-    if (!m) throw new Error('No JSON');
-    const tr = JSON.parse(m[0]);
-    TRANS_TARGETS.forEach(code => {
-      const el = document.querySelector(`[data-field="${fid}"][data-lang="${code}"]`);
-      if (el && tr[code]) {
-        el.value = tr[code];
-        el.style.background = 'rgba(61,214,140,0.15)';
-        setTimeout(() => { el.style.background = ''; }, 700);
+    const raw = (data.content || []).map(function(b){ return b.text || ''; }).join('');
+    const jsonStr = raw.replace(/```json|```/g, '').trim();
+    const tr = JSON.parse(jsonStr);
+
+    langs.forEach(function(code) {
+      if (tr.name && tr.name[code]) {
+        const el = document.querySelector('[data-field="nameFields"][data-lang="' + code + '"]');
+        if (el) { el.value = tr.name[code]; flashGreen(el); }
+      }
+      if (tr.feat && tr.feat[code]) {
+        const el = document.querySelector('[data-field="featFields"][data-lang="' + code + '"]');
+        if (el) { el.value = tr.feat[code]; flashGreen(el); }
       }
     });
-    if (statusEl) { statusEl.textContent = '✅'; setTimeout(()=>{statusEl.style.display='none';}, 1500); }
+
+    if (st) { st.textContent = '✅ Done'; setTimeout(function(){ st.style.display='none'; }, 2000); }
   } catch(e) {
-    console.warn('Translate err:', e);
-    if (statusEl) { statusEl.textContent = '⚠️'; setTimeout(()=>{statusEl.style.display='none';}, 2000); }
+    console.warn('Translate error:', e);
+    if (st) { st.textContent = '⚠️ Failed'; setTimeout(function(){ st.style.display='none'; }, 2500); }
   }
+}
+
+function flashGreen(el) {
+  el.style.transition = 'background 0.3s';
+  el.style.background = 'rgba(61,214,140,0.2)';
+  setTimeout(function(){ el.style.background = ''; }, 800);
+}
+
+function bindTranslateEvents() {
+  // Called via setTimeout(0) AFTER innerHTML is parsed by browser
+  var enName = document.querySelector('[data-field="nameFields"][data-lang="en"]');
+  var enFeat = document.querySelector('[data-field="featFields"][data-lang="en"]');
+  if (enName) { enName.oninput = scheduleTranslate; }
+  if (enFeat) { enFeat.oninput = scheduleTranslate; }
 }
 
 function buildUnifiedML(nameVals, featVals) {
   _pmLang = LANGS[0];
-  document.getElementById('pmLangTabs').innerHTML = LANGS.map(l =>
-    `<button class="mlt ${l===_pmLang?'on':''}" onclick="switchPMLang('${l}')">${LANG_LABELS[l]}</button>`
-  ).join('');
-  document.getElementById('nameFields').innerHTML = LANGS.map(l => {
-    const val = (nameVals[l]||'').replace(/"/g,'&quot;');
-    const extra = l==='en' ? ' data-xlat="name"' : '';
-    return `<div class="multilang-field ${l===_pmLang?'show':''}" data-ml-lang="${l}">
-      <input data-field="nameFields" data-lang="${l}" value="${val}"${extra}
-        style="background:var(--s2);border:1px solid var(--br);border-radius:var(--r);padding:9px 11px;font-size:13px;outline:none;width:100%;color:var(--tx)"
-        placeholder="${LANG_LABELS[l]} name…">
-    </div>`;
-  }).join('');
-  document.getElementById('featFields').innerHTML = LANGS.map(l => {
-    const val = featVals[l]||'';
-    const extra = l==='en' ? ' data-xlat="feat"' : '';
-    return `<div class="multilang-field ${l===_pmLang?'show':''}" data-ml-lang="${l}">
-      <textarea data-field="featFields" data-lang="${l}"${extra}
-        style="background:var(--s2);border:1px solid var(--br);border-radius:var(--r);padding:9px 11px;font-size:12px;outline:none;width:100%;resize:vertical;min-height:100px;line-height:1.5;color:var(--tx)"
-        placeholder="${LANG_LABELS[l]} description…">${val}</textarea>
-    </div>`;
+  document.getElementById('pmLangTabs').innerHTML = LANGS.map(function(l) {
+    return '<button class="mlt ' + (l===_pmLang?'on':'') + '" onclick="switchPMLang('' + l + '')">' + LANG_LABELS[l] + '</button>';
   }).join('');
 
-  // Attach oninput listeners to EN fields via event delegation (avoids quote escaping)
-  document.querySelectorAll('[data-xlat]').forEach(el => {
-    el.oninput = () => scheduleTranslate(el.dataset.xlat);
-  });
+  document.getElementById('nameFields').innerHTML = LANGS.map(function(l) {
+    var val = (nameVals[l]||'').replace(/"/g,'&quot;');
+    return '<div class="multilang-field ' + (l===_pmLang?'show':'') + '" data-ml-lang="' + l + '">'
+      + '<input data-field="nameFields" data-lang="' + l + '" value="' + val + '"'
+      + ' style="background:var(--s2);border:1px solid var(--br);border-radius:var(--r);padding:9px 11px;font-size:13px;outline:none;width:100%;color:var(--tx)"'
+      + ' placeholder="' + LANG_LABELS[l] + ' name…">'
+      + '</div>';
+  }).join('');
+
+  document.getElementById('featFields').innerHTML = LANGS.map(function(l) {
+    var val = featVals[l]||'';
+    return '<div class="multilang-field ' + (l===_pmLang?'show':'') + '" data-ml-lang="' + l + '">'
+      + '<textarea data-field="featFields" data-lang="' + l + '"'
+      + ' style="background:var(--s2);border:1px solid var(--br);border-radius:var(--r);padding:9px 11px;font-size:12px;outline:none;width:100%;resize:vertical;min-height:100px;line-height:1.5;color:var(--tx)"'
+      + ' placeholder="' + LANG_LABELS[l] + ' description…">' + val + '</textarea>'
+      + '</div>';
+  }).join('');
+
+  // Wait for browser to parse innerHTML before binding events
+  setTimeout(bindTranslateEvents, 0);
 }
-
 function switchPMLang(l) {
   _pmLang = l;
   document.querySelectorAll('#pmLangTabs .mlt').forEach(b => b.classList.toggle('on', b.textContent===LANG_LABELS[l]));
