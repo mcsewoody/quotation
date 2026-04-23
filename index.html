@@ -1056,7 +1056,7 @@ function buildUnifiedML(nameVals, featVals) {
   ).join('');
   document.getElementById('nameFields').innerHTML = LANGS.map(l => {
     const val = (nameVals[l]||'').replace(/"/g,'&quot;');
-    const extra = l==='en' ? ' oninput="scheduleTranslate('name')"' : '';
+    const extra = l==='en' ? ' data-xlat="name"' : '';
     return `<div class="multilang-field ${l===_pmLang?'show':''}" data-ml-lang="${l}">
       <input data-field="nameFields" data-lang="${l}" value="${val}"${extra}
         style="background:var(--s2);border:1px solid var(--br);border-radius:var(--r);padding:9px 11px;font-size:13px;outline:none;width:100%;color:var(--tx)"
@@ -1065,13 +1065,18 @@ function buildUnifiedML(nameVals, featVals) {
   }).join('');
   document.getElementById('featFields').innerHTML = LANGS.map(l => {
     const val = featVals[l]||'';
-    const extra = l==='en' ? ' oninput="scheduleTranslate('feat')"' : '';
+    const extra = l==='en' ? ' data-xlat="feat"' : '';
     return `<div class="multilang-field ${l===_pmLang?'show':''}" data-ml-lang="${l}">
       <textarea data-field="featFields" data-lang="${l}"${extra}
         style="background:var(--s2);border:1px solid var(--br);border-radius:var(--r);padding:9px 11px;font-size:12px;outline:none;width:100%;resize:vertical;min-height:100px;line-height:1.5;color:var(--tx)"
         placeholder="${LANG_LABELS[l]} description…">${val}</textarea>
     </div>`;
   }).join('');
+
+  // Attach oninput listeners to EN fields via event delegation (avoids quote escaping)
+  document.querySelectorAll('[data-xlat]').forEach(el => {
+    el.oninput = () => scheduleTranslate(el.dataset.xlat);
+  });
 }
 
 function switchPMLang(l) {
@@ -1821,7 +1826,7 @@ async function clearAllQuotes(){if(!confirm('Clear all quotations?'))return;QUOT
 // ═══════════════════════════════════════
 // REFRESH (pull latest from Firestore)
 // ═══════════════════════════════════════
-async function refreshData() {
+window.refreshData = async function refreshData() {
   if (!USE_FIREBASE) { toast('⚡ Local mode — no cloud sync'); return; }
   showSyncing();
   try {
