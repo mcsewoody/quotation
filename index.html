@@ -259,7 +259,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2026.04.23 17:35</div>
+        <div style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2026.04.24 09:30</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -311,6 +311,11 @@ img{display:block}
 
 <!-- ── PAGE: PRODUCTS ──────────────────────────────────── -->
 <div class="page" id="pageProducts">
+  <div style="padding:8px 12px 4px">
+    <input id="prodSearch" type="search" placeholder="🔍  Search by Item Code, Name, Description…"
+      oninput="renderProductList()"
+      style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px;outline:none;box-sizing:border-box">
+  </div>
   <div class="card" id="productList"></div>
   <button class="fab" onclick="openProdModal(null)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -1059,7 +1064,11 @@ function renderProductList(){
   document.getElementById('np-cnt-p').textContent=PRODUCTS.length;
   const el=document.getElementById('productList');
   if(!PRODUCTS.length){el.innerHTML=`<div class="empty-box"><div class="ei">📦</div><p>${t('noProds')}</p></div>`;return;}
-  el.innerHTML=PRODUCTS.map(p=>`
+  const _sq=(document.getElementById('prodSearch')?.value||'').toLowerCase().trim();
+  const _sorted=[...PRODUCTS].sort((a,b)=>(a.series||'').localeCompare(b.series||''));
+  const _disp=_sq?_sorted.filter(p=>(p.series||'').toLowerCase().includes(_sq)||Object.values(p.name||{}).some(v=>v&&v.toLowerCase().includes(_sq))||Object.values(p.features||{}).some(v=>v&&v.toLowerCase().includes(_sq))):_sorted;
+  if(!_disp.length){el.innerHTML=`<div class="empty-box"><div class="ei">🔍</div><p>No results</p></div>`;return;}
+  el.innerHTML=_disp.map(p=>`
     <div class="pm-row" onclick="openProdModal('${p.id}')">
       <div class="pm-thumb">${p.img?`<img src="${p.img}" alt="">`:'📦'}</div>
       <div>
@@ -1293,16 +1302,59 @@ async function saveProd(){
   renderProductList();
   toast(t('save'));
 }
+
+// ── Delete with password ─────────────────
+const DEL_PWD = '847563';
+async function confirmDelete(label, callback) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+    overlay.innerHTML = `
+      <div style="background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:24px;width:300px;max-width:90vw">
+        <div style="font-size:15px;font-weight:700;color:var(--tx);margin-bottom:8px">🔐 Confirm Delete</div>
+        <div style="font-size:13px;color:var(--tx2);margin-bottom:16px">Enter password to delete <b>${label}</b></div>
+        <input id="_delPwdInput" type="password" placeholder="Password" autocomplete="off"
+          style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px">
+        <div style="display:flex;gap:8px">
+          <button id="_delConfirmBtn" style="flex:1;padding:9px;border-radius:8px;background:#C8102E;color:#fff;font-weight:700;border:none;cursor:pointer;font-size:13px">Delete</button>
+          <button id="_delCancelBtn" style="flex:1;padding:9px;border-radius:8px;background:var(--s2);color:var(--tx2);font-weight:600;border:1px solid var(--br);cursor:pointer;font-size:13px">Cancel</button>
+        </div>
+        <div id="_delErrMsg" style="color:#ff5555;font-size:12px;margin-top:8px;display:none">Wrong password</div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const inp = overlay.querySelector('#_delPwdInput');
+    const errMsg = overlay.querySelector('#_delErrMsg');
+    setTimeout(() => inp.focus(), 100);
+    overlay.querySelector('#_delConfirmBtn').onclick = async () => {
+      if (inp.value === DEL_PWD) {
+        document.body.removeChild(overlay);
+        await callback();
+        resolve(true);
+      } else {
+        errMsg.style.display = 'block';
+        inp.value = ''; inp.focus();
+      }
+    };
+    overlay.querySelector('#_delCancelBtn').onclick = () => {
+      document.body.removeChild(overlay);
+      resolve(false);
+    };
+    inp.addEventListener('keydown', e => { if(e.key==='Enter') overlay.querySelector('#_delConfirmBtn').click(); });
+  });
+}
+
 async function deleteProd(){
-  if(!confirm('Delete this product?'))return;
-  const idToDelete = editProdId;
-  // Remove from local array first for instant UI feedback
-  PRODUCTS = PRODUCTS.filter(p => p.id !== idToDelete);
-  closeProdModal();
-  renderProductList();
-  // Then confirm delete in Firestore
-  await deleteOneP(idToDelete);
-  toast(t('delete'));
+  if(!editProdId)return;
+  const _p=PRODUCTS.find(x=>x.id===editProdId);
+  const _lbl=_p?(_p.series||lx(_p.name)||'product'):'product';
+  await confirmDelete(_lbl, async()=>{
+    const idToDelete = editProdId;
+    PRODUCTS = PRODUCTS.filter(p => p.id !== idToDelete);
+    closeProdModal();
+    renderProductList();
+    await deleteOneP(idToDelete);
+    toast(t('deleted'));
+  });
 }
 
 // ═══════════════════════════════════════
@@ -1440,18 +1492,23 @@ async function saveQuote(){
   await saveOneQ(q);
   toast(t('save'));
   renderQuoteList();
-  // Stay on form after save; update delete button visibility
-  document.getElementById('delQBtn').style.display = 'inline-flex';
-  editQId = q.id;
+  // Go to detail view after save
+  renderDetail(q.id);
+  page='detail';
+  goPage('detail');
 }
 async function deleteQuote(){
-  if(!confirm('Delete?'))return;
-  const idToDelete = editQId;
-  QUOTES = QUOTES.filter(x => x.id !== idToDelete);
-  goPage('quotes'); page='quotes';
-  renderQuoteList();
-  await deleteOneQ(idToDelete);
-  toast(t('delete'));
+  if(!editQId)return;
+  const _q=QUOTES.find(x=>x.id===editQId);
+  const _qlbl=_q?(_q.ref||'quote'):'quote';
+  await confirmDelete(_qlbl, async()=>{
+    const idToDelete = editQId;
+    QUOTES = QUOTES.filter(x => x.id !== idToDelete);
+    goPage('quotes'); page='quotes';
+    renderQuoteList();
+    await deleteOneQ(idToDelete);
+    toast(t('deleted'));
+  });
 }
 
 // ═══════════════════════════════════════
@@ -1941,16 +1998,25 @@ async function downloadPDF(id) {
       doc.text(codeLines, cx + colW.code/2, y + rowH/2 - (codeLines.length-1)*2, { align:'center', baseline:'middle' });
       cx += colW.code;
 
-      // Picture
-      const imgInfo = PROD_IMG_B64[pid];
-      if (imgInfo) {
+      // Picture — Firebase Storage URL or fallback base64
+      const pProd = PRODUCTS.find(x => x.id === pid);
+      const pImgSrc = pProd?.img || (PROD_IMG_B64[pid] ? 'data:image/jpeg;base64,' + PROD_IMG_B64[pid].b64 : null);
+      if (pImgSrc) {
         try {
-          const maxW = colW.pic - 4, maxH = rowH - 4;
-          const scale = Math.min(maxW / imgInfo.w, maxH / imgInfo.h, 1);
-          const iW = Math.round(imgInfo.w * scale), iH = Math.round(imgInfo.h * scale);
-          doc.addImage('data:image/jpeg;base64,' + imgInfo.b64, 'JPEG',
-            cx + (colW.pic - iW)/2, y + (rowH - iH)/2, iW, iH);
-        } catch(e) {}
+          let pImgData = pImgSrc;
+          if (pImgSrc.startsWith('http')) {
+            const pr = await fetch(pImgSrc);
+            const pb = await pr.blob();
+            pImgData = await new Promise(res => { const rd = new FileReader(); rd.onload = e => res(e.target.result); rd.readAsDataURL(pb); });
+          }
+          const iRef = PROD_IMG_B64[pid];
+          let piW = iRef ? iRef.w : 120, piH = iRef ? iRef.h : 120;
+          const pMaxW = colW.pic - 4, pMaxH = rowH - 4;
+          const pSc = Math.min(pMaxW/piW, pMaxH/piH, 1);
+          piW = Math.round(piW*pSc); piH = Math.round(piH*pSc);
+          const pFmt = pImgData.includes('image/png')?'PNG':pImgData.includes('image/webp')?'WEBP':'JPEG';
+          doc.addImage(pImgData, pFmt, cx + (colW.pic-piW)/2, y + (rowH-piH)/2, piW, piH);
+        } catch(pE) { console.warn('PDF img skip:', pE); }
       }
       cx += colW.pic;
 
