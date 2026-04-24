@@ -430,7 +430,6 @@ img{display:block}
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn btn-outline btn-sm" onclick="exportData()">Export JSON</button>
     <button class="btn btn-outline btn-sm" onclick="document.getElementById('importFile').click()">Import JSON</button>
-    <button class="btn btn-danger btn-sm" onclick="clearAllQuotes()">Clear Quotes</button>
   </div>
   <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
   <div class="btn-row"><button class="btn btn-primary" onclick="saveSettings()"><span id="sg-save">Save Settings</span></button><button class="btn btn-ghost" onclick="precacheAllImages()">🖼 Cache Images for PDF/XLSX</button></div>
@@ -1113,6 +1112,12 @@ function openProdModal(id){
   const lbl=document.getElementById('imgLbl');
   if(p?.img){
     tmpImg = p.img; // preserve existing image in tmpImg so saveProd always has it
+    // If img is a URL, try to pre-cache it for PDF/XLSX
+    if (p.img.startsWith('http') && !localStorage.getItem('qi-img-b64-' + p.id)) {
+      getProdImgB64(p.id).then(b64 => {
+        if (b64) console.log('Pre-cached on open:', p.id);
+      });
+    }
     zone.style.background='none';ph.style.display='none';lbl.style.display='none';
     if(!zone.querySelector('.preview-img')){
       const i=document.createElement('img');i.className='preview-img';i.src=p.img;zone.appendChild(i);
@@ -1645,28 +1650,55 @@ async function getProdImgB64(pid) {
   // 1. Try localStorage cache first (most reliable, no CORS)
   const cached = localStorage.getItem('qi-img-b64-' + pid);
   if (cached && cached.startsWith('data:')) {
-    console.log('IMG [' + pid + ']: from localStorage cache ✅');
+    console.log('IMG [' + pid + ']: localStorage ✅');
     return cached;
   }
 
   // 2. Try PROD_IMG_B64 static dict
   if (PROD_IMG_B64[pid]) {
-    console.log('IMG [' + pid + ']: from static dict ✅');
+    console.log('IMG [' + pid + ']: static dict ✅');
     return 'data:image/jpeg;base64,' + PROD_IMG_B64[pid].b64;
   }
 
-  // 3. Try fetching Firebase Storage URL
+  // 3. Firebase Storage URL — use Image tag to load (no CORS needed for display)
+  //    then draw to canvas to get base64
   const prod = PRODUCTS.find(x => x.id === pid);
-  console.log('IMG [' + pid + ']: img URL =', prod?.img);
-  if (!prod?.img || !prod.img.startsWith('http')) {
-    console.warn('IMG [' + pid + ']: no URL, skipping ❌');
-    return null;
+  if (!prod?.img) { console.warn('IMG [' + pid + ']: no img ❌'); return null; }
+
+  // Try loading via <img> tag with crossOrigin='' (works if server allows *)
+  const loadViaImg = (src, cors) => new Promise((res, rej) => {
+    const im = new Image();
+    if (cors) im.crossOrigin = 'anonymous';
+    im.onload = () => {
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = im.naturalWidth || 200;
+        cv.height = im.naturalHeight || 200;
+        cv.getContext('2d').drawImage(im, 0, 0);
+        const data = cv.toDataURL('image/jpeg', 0.9);
+        if (data === 'data:,') throw new Error('tainted canvas');
+        res(data);
+      } catch(e) { rej(e); }
+    };
+    im.onerror = () => rej(new Error('load error'));
+    im.src = src;
+  });
+
+  // Try 1: crossOrigin anonymous (works if Firebase CORS allows *)
+  try {
+    const b64 = await loadViaImg(prod.img, true);
+    try { localStorage.setItem('qi-img-b64-' + pid, b64); } catch(_) {}
+    console.log('IMG [' + pid + ']: crossOrigin canvas ✅');
+    return b64;
+  } catch(e1) {
+    console.warn('IMG [' + pid + ']: crossOrigin failed:', e1.message);
   }
 
+  // Try 2: fetch via our Cloudflare worker proxy
   try {
-    console.log('IMG [' + pid + ']: fetching URL…');
-    const resp = await fetch(prod.img, { mode: 'cors' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const proxyUrl = XLAT_PROXY + '?imgproxy=' + encodeURIComponent(prod.img);
+    const resp = await fetch(proxyUrl);
+    if (!resp.ok) throw new Error('proxy HTTP ' + resp.status);
     const blob = await resp.blob();
     const b64 = await new Promise((res, rej) => {
       const rd = new FileReader();
@@ -1674,38 +1706,33 @@ async function getProdImgB64(pid) {
       rd.onerror = () => rej(new Error('reader fail'));
       rd.readAsDataURL(blob);
     });
-    // Cache for next time
     try { localStorage.setItem('qi-img-b64-' + pid, b64); } catch(_) {}
-    console.log('IMG [' + pid + ']: fetched & cached ✅');
+    console.log('IMG [' + pid + ']: proxy ✅');
     return b64;
-  } catch(e) {
-    console.error('IMG [' + pid + ']: fetch FAILED ❌', e.message);
-    return null;
+  } catch(e2) {
+    console.warn('IMG [' + pid + ']: proxy failed:', e2.message);
   }
+
+  console.error('IMG [' + pid + ']: all methods failed ❌');
+  return null;
 }
 
-// ── Pre-cache all product images (call from Settings or on load) ──
+// ── Pre-cache all product images ──
 async function precacheAllImages() {
-  let ok = 0, fail = 0;
+  let ok = 0, skip = 0, fail = 0;
+  toast('⏳ Caching images…');
   for (const p of PRODUCTS) {
-    if (!p.img || p.img.startsWith('data:')) continue;
+    if (!p.img) continue;
+    if (p.img.startsWith('data:')) {
+      try { localStorage.setItem('qi-img-b64-' + p.id, p.img); ok++; } catch(_) {}
+      continue;
+    }
     const cached = localStorage.getItem('qi-img-b64-' + p.id);
-    if (cached) { ok++; continue; }
-    try {
-      const resp = await fetch(p.img, { mode: 'cors' });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const blob = await resp.blob();
-      const b64 = await new Promise((res, rej) => {
-        const rd = new FileReader();
-        rd.onload = e => res(e.target.result);
-        rd.onerror = () => rej(new Error('reader fail'));
-        rd.readAsDataURL(blob);
-      });
-      localStorage.setItem('qi-img-b64-' + p.id, b64);
-      ok++;
-    } catch(e) { console.error('precache fail:', p.id, e.message); fail++; }
+    if (cached && cached.startsWith('data:')) { skip++; continue; }
+    const b64 = await getProdImgB64(p.id);
+    if (b64) ok++; else fail++;
   }
-  toast(ok + ' images cached' + (fail ? ', ' + fail + ' failed' : '') + ' ✅');
+  toast('🖼 ' + ok + ' cached, ' + skip + ' already cached' + (fail ? ', ' + fail + ' failed' : '') + ' ✅');
 }
 
 async function downloadXLSX(id) {
