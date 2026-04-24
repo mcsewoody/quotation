@@ -289,6 +289,7 @@ img{display:block}
   <div class="nav-pills" id="navPills">
     <button class="npill active" data-tab="quotes" onclick="switchTab('quotes')"><span id="np-quotes">Quotations</span> <span class="badge" id="np-cnt-q">0</span></button>
     <button class="npill" data-tab="products" onclick="switchTab('products')"><span id="np-products">Products</span> <span class="badge" id="np-cnt-p">0</span></button>
+    <button class="npill" data-tab="categories" onclick="switchTab('categories')"><span id="np-categories">Categories</span> <span class="badge" id="np-cnt-c">0</span></button>
   </div>
 </div>
 
@@ -320,6 +321,43 @@ img{display:block}
   <button class="fab" onclick="openProdModal(null)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
   </button>
+</div>
+
+<!-- ── PAGE: CATEGORIES ───────────────────────────────── -->
+<div class="page" id="pageCategories">
+  <div class="card" id="categoryList"></div>
+  <button class="fab" onclick="openCatModal(null)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+</div>
+
+<!-- ── CATEGORY MODAL ──────────────────────────────────── -->
+<div class="overlay" id="catOverlay" onclick="closeCatModal(event)">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hd">
+      <div class="modal-title" id="cat-title">New Category</div>
+      <button class="modal-close" onclick="closeCatModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="field-grid one" style="margin-bottom:12px">
+      <div class="field">
+        <label>Category Code (3 chars)</label>
+        <input id="cat-code" maxlength="3" placeholder="e.g. EAR" autocomplete="off"
+          oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3)"
+          style="font-weight:700;letter-spacing:.08em;font-size:15px">
+      </div>
+    </div>
+    <div class="field-grid one" style="margin-bottom:16px">
+      <div class="field">
+        <label>Description (max 20 chars)</label>
+        <input id="cat-desc" maxlength="20" placeholder="e.g. Earphones & Earbuds" autocomplete="off">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveCat()">Save</button>
+      <button class="btn btn-ghost" onclick="closeCatModal()">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="cat-del" style="display:none" onclick="deleteCat()">Delete</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── PAGE: QUOTE FORM ────────────────────────────────── -->
@@ -461,6 +499,7 @@ img{display:block}
         <div class="field-grid" style="margin-bottom:9px">
           <div class="field"><label id="pm-price-lbl">Default Price (1K, USD)</label><input id="pm-price" type="number" min="0" step="0.01" placeholder="0.00" autocomplete="off"></div>
           <div class="field"><label id="pm-remark-lbl">Default Remark</label><input id="pm-remark" placeholder="e.g. Price excl. packaging." autocomplete="off"></div>
+        <div class="field"><label>Category</label><select id="pm-cat" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px"><option value="">— None —</option></select></div>
         </div>
         <!-- Unified language selector -->
         <div>
@@ -484,6 +523,10 @@ img{display:block}
     <div class="btn-row">
       <button class="btn btn-primary" onclick="saveProd()"><span id="pm-save">Save Product</span></button>
       <button class="btn btn-ghost" onclick="closeProdModal()"><span id="pm-cancel">Cancel</span></button>
+      <button class="btn btn-ghost btn-sm" id="pm-copy" style="display:none" onclick="copyProd()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy
+      </button>
       <button class="btn btn-danger btn-sm" id="pm-del" style="display:none" onclick="deleteProd()"><span id="pm-del-lbl">Delete</span></button>
     </div>
   </div>
@@ -652,6 +695,7 @@ const firebaseConfig = {
 let db = null;
 let storage = null;
 let USE_FIREBASE = false;
+let CATEGORIES = [];
 
 if (typeof firebase !== 'undefined') {
   try {
@@ -669,6 +713,7 @@ if (typeof firebase !== 'undefined') {
 const COL_Q = 'quotes';
 const COL_P = 'products';
 const COL_S = 'settings';
+const COL_C = 'categories';
 
 // ── Loading indicator helpers ──────────
 function showSyncing() { const el=document.getElementById('syncIndicator'); if(el) el.style.display='flex'; }
@@ -707,6 +752,15 @@ function startListeners() {
         renderProductList();
       }
     }, err => console.warn('P listener:', err));
+
+  // Categories real-time listener
+  db.collection(COL_C).orderBy('code','asc')
+    .onSnapshot({ includeMetadataChanges: false }, snap => {
+      CATEGORIES = snap.docs.map(d => d.data());
+      const cntEl = document.getElementById('np-cnt-c');
+      if(cntEl) cntEl.textContent = CATEGORIES.length;
+      if(page === 'categories') renderCategoryList();
+    }, err => console.warn('C listener:', err));
 }
 
 // ── Load all data ──────────────────────
@@ -721,6 +775,11 @@ async function loadAll() {
       ]);
       QUOTES   = qSnap.docs.map(d => d.data());
       PRODUCTS = pSnap.docs.map(d => d.data());
+    try {
+      const cSnap = await db.collection(COL_C).orderBy('code','asc').get();
+      CATEGORIES = cSnap.docs.map(d => d.data());
+    } catch(_) { CATEGORIES = []; }
+    document.getElementById('np-cnt-c').textContent = CATEGORIES.length;
       if (sDoc.exists) SETTINGS = { ...SETTINGS, ...sDoc.data() };
       lsSet('qi-q-cache', QUOTES);
       lsSet('qi-p-cache', PRODUCTS);
@@ -998,12 +1057,18 @@ function switchTab(tab){
   document.querySelectorAll('.npill[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   document.getElementById('pageQuotes').classList.toggle('active',tab==='quotes');
   document.getElementById('pageProducts').classList.toggle('active',tab==='products');
+  document.getElementById('pageCategories').classList.toggle('active',tab==='categories');
   if(tab==='products') renderProductList();
+  if(tab==='categories') renderCategoryList();
+  // Keep nav visible for all home tabs
+  document.getElementById('logoArea').style.display='flex';
+  document.getElementById('navPills').style.display='flex';
+  document.getElementById('settingsBtn').style.display='flex';
 }
 function goPage(pg){
-  ['pageQuotes','pageProducts','pageForm','pageDetail','pageSettings'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  ['pageQuotes','pageProducts','pageCategories','pageForm','pageDetail','pageSettings'].forEach(id=>document.getElementById(id).classList.remove('active'));
   document.getElementById('page'+pg.charAt(0).toUpperCase()+pg.slice(1)).classList.add('active');
-  const isHome=pg==='quotes'||pg==='products';
+  const isHome=pg==='quotes'||pg==='products'||pg==='categories';
   document.getElementById('logoArea').style.display=isHome?'flex':'none';
   document.getElementById('navPills').style.display=isHome?'flex':'none';
   document.getElementById('backRow').classList.toggle('show',!isHome);
@@ -1068,6 +1133,94 @@ function renderQuoteList(){
 // ═══════════════════════════════════════
 // PRODUCT LIST
 // ═══════════════════════════════════════
+// ═══════════════════════════════════════
+// CATEGORIES
+// ═══════════════════════════════════════
+let editCatId = null;
+function renderCategoryList(){
+  const cntEl=document.getElementById('np-cnt-c');
+  if(cntEl) cntEl.textContent=CATEGORIES.length;
+  const el=document.getElementById('categoryList');
+  if(!el) return;
+  if(!CATEGORIES.length){el.innerHTML='<div class="empty-box"><div class="ei">🏷️</div><p>No categories yet</p></div>';return;}
+  const sorted=[...CATEGORIES].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
+  el.innerHTML=sorted.map(c=>`<div class="pm-row" onclick="openCatModal('${c.id}')"><div style="display:flex;align-items:center;gap:12px;padding:4px 0"><span style="font-size:16px;font-weight:800;color:var(--ac);font-family:var(--fm);letter-spacing:.06em;min-width:38px">${c.code}</span><span style="font-size:13px;color:var(--tx2)">${c.desc||''}</span><span style="margin-left:auto;font-size:11px;color:var(--tx3)">${PRODUCTS.filter(p=>p.catId===c.id).length} products</span></div></div>`).join('');
+}
+function openCatModal(id){
+  editCatId=id;
+  const c=id?CATEGORIES.find(x=>x.id===id):null;
+  document.getElementById('cat-title').textContent=c?'Edit Category':'New Category';
+  document.getElementById('cat-code').value=c?.code||'';
+  document.getElementById('cat-desc').value=c?.desc||'';
+  document.getElementById('cat-del').style.display=c?'inline-flex':'none';
+  document.getElementById('catOverlay').classList.add('show');
+}
+function closeCatModal(e){
+  if(e&&e.target!==document.getElementById('catOverlay'))return;
+  document.getElementById('catOverlay').classList.remove('show');
+}
+async function saveCat(){
+  const code=document.getElementById('cat-code').value.trim().toUpperCase();
+  const desc=document.getElementById('cat-desc').value.trim();
+  if(!code){toast('Code required');return;}
+  if(code.length!==3){toast('Code must be 3 characters');return;}
+  const dup=CATEGORIES.find(c=>c.code===code&&c.id!==editCatId);
+  if(dup){toast('Code already exists');return;}
+  const existing=editCatId?CATEGORIES.find(x=>x.id===editCatId):null;
+  const cat={id:existing?.id||uid(),code,desc,createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()};
+  if(existing) CATEGORIES=CATEGORIES.map(c=>c.id===editCatId?cat:c);
+  else CATEGORIES.push(cat);
+  if(USE_FIREBASE){try{await db.collection(COL_C).doc(cat.id).set(cat);}catch(e){console.error('saveCat',e);}}
+  closeCatModal();renderCategoryList();updateVersionStamp();toast('Saved');
+}
+async function deleteCat(){
+  if(!editCatId)return;
+  const c=CATEGORIES.find(x=>x.id===editCatId);
+  const inUse=PRODUCTS.filter(p=>p.catId===editCatId).length;
+  if(inUse>0){toast('Cannot delete: '+inUse+' product(s) assigned');return;}
+  await confirmDelete(c?.code||'category',async()=>{
+    CATEGORIES=CATEGORIES.filter(x=>x.id!==editCatId);
+    if(USE_FIREBASE){try{await db.collection(COL_C).doc(editCatId).delete();}catch(e){}}
+    closeCatModal();renderCategoryList();toast('Deleted');
+  });
+}
+function copyProd(){
+  if(!editProdId)return;
+  const src=PRODUCTS.find(p=>p.id===editProdId);
+  if(!src)return;
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+  ov.innerHTML='<div style="background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:24px;width:320px;max-width:90vw"><div style="font-size:15px;font-weight:700;color:var(--tx);margin-bottom:4px">Copy Product</div><div style="font-size:12px;color:var(--tx3);margin-bottom:14px">Enter new Item Code for the copy</div><input id="_cpyI" type="text" placeholder="New Item Code" maxlength="20" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;font-weight:700"><div style="display:flex;gap:8px"><button id="_cpyOk" style="flex:1;padding:9px;border-radius:8px;background:var(--ac);color:#000;font-weight:700;border:none;cursor:pointer;font-size:13px">Copy</button><button id="_cpyCx" style="flex:1;padding:9px;border-radius:8px;background:var(--s2);color:var(--tx2);font-weight:600;border:1px solid var(--br);cursor:pointer;font-size:13px">Cancel</button></div></div>';
+  document.body.appendChild(ov);
+  const inp=ov.querySelector('#_cpyI');
+  inp.value=src.series+'_copy';inp.select();setTimeout(()=>inp.focus(),80);
+  ov.querySelector('#_cpyOk').onclick=()=>{
+    const nc=inp.value.trim();
+    if(!nc){inp.style.borderColor='#f55';inp.focus();return;}
+    document.body.removeChild(ov);
+    closeProdModal();
+    const newId=uid();
+    openProdModal(null);
+    setTimeout(()=>{
+      document.getElementById('pm-series').value=nc;
+      document.getElementById('pm-price').value=src.defaultPrice||'';
+      document.getElementById('pm-remark').value=src.remark||'';
+      ['en','zh-TW','zh-CN','vi','ja'].forEach(lang=>{
+        const ne=document.querySelector('[data-field="nameFields"][data-lang="'+lang+'"]');
+        const fe=document.querySelector('[data-field="featFields"][data-lang="'+lang+'"]');
+        if(ne&&src.name)ne.value=src.name[lang]||'';
+        if(fe&&src.features)fe.value=src.features[lang]||'';
+      });
+      if(src.img){tmpImg=src.img;const pi=document.getElementById('prodImg');if(pi){pi.src=src.img;pi.style.display='block';}const ph=document.getElementById('imgPh');if(ph)ph.style.display='none';}
+      const cs=document.getElementById('pm-cat');if(cs&&src.catId)cs.value=src.catId;
+      const b64=localStorage.getItem('qi-img-b64-'+src.id);
+      if(b64)try{localStorage.setItem('qi-img-b64-'+newId,b64);}catch(_){}
+    },120);
+  };
+  ov.querySelector('#_cpyCx').onclick=()=>document.body.removeChild(ov);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')ov.querySelector('#_cpyOk').click();});
+}
+
 function renderProductList(){
   document.getElementById('np-cnt-p').textContent=PRODUCTS.length;
   const el=document.getElementById('productList');
@@ -1084,6 +1237,7 @@ function renderProductList(){
         <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
           <span style="font-size:13px;font-weight:700;color:var(--ac);font-family:var(--fm);letter-spacing:.03em">${p.series}</span>
           ${p.defaultPrice?`<span style="font-size:13px;font-weight:600;color:#3DD68C;font-family:var(--fm)">$${p.defaultPrice.toFixed(2)}<span style="font-size:10px;color:var(--tx3);font-weight:400">/1K</span></span>`:''}
+          ${p.catId?(()=>{const _c=CATEGORIES.find(x=>x.id===p.catId);return _c?`<span style="font-size:10px;color:var(--tx3);background:var(--s2);padding:1px 6px;border-radius:4px;border:1px solid var(--br)">${_c.code}</span>`:''})():''}
         </div>
       </div>
       <div class="pm-actions">
@@ -1103,6 +1257,7 @@ function openProdModal(id){
   const p=id?PRODUCTS.find(x=>x.id===id):null;
   document.getElementById('pm-title').textContent=p?t('editProd'):t('newProd');
   document.getElementById('pm-del').style.display=p?'inline-flex':'none';
+  const cpyBtn=document.getElementById('pm-copy'); if(cpyBtn) cpyBtn.style.display=p?'inline-flex':'none';
   document.getElementById('pm-series').value=p?.series||'';
   document.getElementById('pm-price').value=p?.defaultPrice||'';
   document.getElementById('pm-remark').value=p?.remark||'';
@@ -1129,6 +1284,11 @@ function openProdModal(id){
   }
   // Build multilang tabs & fields
   buildUnifiedML(p?.name||{}, p?.features||{});
+  // Populate category selector
+  const catSel = document.getElementById('pm-cat');
+  catSel.innerHTML = '<option value="">— None —</option>' +
+    [...CATEGORIES].sort((a,b)=>a.code.localeCompare(b.code))
+      .map(c=>`<option value="${c.id}" ${p?.catId===c.id?'selected':''}>${c.code} — ${c.desc}</option>`).join('');
   document.getElementById('prodOverlay').classList.add('show');
 }
 function closeProdModal(e){
@@ -1304,8 +1464,9 @@ async function saveProd(){
   const defaultPrice=parseFloat(document.getElementById('pm-price').value)||null;
   const remark=document.getElementById('pm-remark').value.trim();
   const prodId = existing?.id || uid();
+  const catId = document.getElementById('pm-cat')?.value || null;
   const prod={
-    id:prodId,series,name,features,img:imgVal,
+    id:prodId,series,name,features,img:imgVal,catId:catId||null,
     defaultPrice,remark,
     createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()
   };
@@ -1322,6 +1483,7 @@ async function saveProd(){
   closeProdModal();
   renderProductList();
   toast(t('save'));
+  updateVersionStamp();
 }
 
 // ── Delete with password ─────────────────
@@ -1518,6 +1680,7 @@ async function saveQuote(){
   await saveOneQ(q);
   toast(t('save'));
   renderQuoteList();
+  updateVersionStamp();
   // Go to detail view after save
   renderDetail(q.id);
   page='detail';
@@ -2072,7 +2235,9 @@ async function downloadPDF(id) {
       const featText = getFullFeatures(p, ql);
       doc.setFontSize(7.5);
       const featLines = doc.splitTextToSize(featText, colW.feat - 3);
+      doc.setFontSize(5.5); // smaller font for code column sizing
       const codeLines = doc.splitTextToSize(p.series, colW.code - 2);
+      doc.setFontSize(7.5); // restore
       const remText   = p.remark || 'Price excl. packaging. MOQ 1,000 pcs/SKU.';
       const remLines  = doc.splitTextToSize(remText, colW.remark - 2);
       const rowH = Math.max(28, Math.max(featLines.length, remLines.length) * 4 + 8);
@@ -2101,11 +2266,12 @@ async function downloadPDF(id) {
       doc.rect(ML, y, PW, rowH, 'F');
 
       cx = ML;
-      doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+      doc.setFont('helvetica','bold'); doc.setFontSize(5.5);
 
       // Item Code
-      doc.text(codeLines, cx + colW.code/2, y + rowH/2 - (codeLines.length-1)*2, { align:'center', baseline:'middle' });
+      doc.text(codeLines, cx + colW.code/2, y + rowH/2 - (codeLines.length-1)*1.5, { align:'center', baseline:'middle' });
       cx += colW.code;
+      doc.setFontSize(7.5); // restore for other columns
 
       // Picture via getProdImgB64 (localStorage cache → static dict → fetch)
       const pdfImgB64 = await getProdImgB64(pid);
@@ -2214,6 +2380,17 @@ function renderSettingsPage(){
   document.getElementById('s-pay').value=SETTINGS.pay||'';
   document.querySelectorAll('.lchip').forEach(b=>b.classList.toggle('on',b.textContent===LANG_LABELS[lang]));
 }
+function updateVersionStamp(){
+  const now = new Date();
+  const tpe = now.toLocaleString('zh-TW', {
+    timeZone:'Asia/Taipei', year:'2-digit', month:'2-digit',
+    day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false
+  });
+  const parts = tpe.replace(/\//g,'.').split(' ');
+  const el = document.getElementById('appVersionDiv');
+  if(el) el.textContent = 'v20' + (parts[0]||'') + ' ' + (parts[1]||'') + ' TPE';
+}
+
 async function saveSettings(){
   SETTINGS={lead:document.getElementById('s-lead').value.trim(),valid:document.getElementById('s-valid').value.trim(),inco:document.getElementById('s-inco').value.trim(),pay:document.getElementById('s-pay').value.trim()};
   await saveS();toast(t('saveSettings'));
@@ -2292,6 +2469,11 @@ window.refreshData = async function refreshData() {
     ]);
     QUOTES   = qSnap.docs.map(d => d.data());
     PRODUCTS = pSnap.docs.map(d => d.data());
+    try {
+      const cSnap = await db.collection(COL_C).orderBy('code','asc').get();
+      CATEGORIES = cSnap.docs.map(d => d.data());
+    } catch(_) { CATEGORIES = []; }
+    document.getElementById('np-cnt-c').textContent = CATEGORIES.length;
     lsSet('qi-q-cache', QUOTES);
     lsSet('qi-p-cache', PRODUCTS);
     renderQuoteList(); renderProductList();
@@ -2306,17 +2488,6 @@ window.refreshData = async function refreshData() {
 // ═══════════════════════════════════════
 async function init(){
   await loadAll();
-// Set version timestamp in Taipei time
-(function(){
-  const now = new Date();
-  const tpe = now.toLocaleString('zh-TW', {timeZone:'Asia/Taipei',year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
-  // tpe format: "YY/MM/DD HH:MM" → reformat
-  const parts = tpe.replace(/\//g,'.').replace(' ','_').split('_');
-  const dateP = '20' + parts[0]; // 20YY.MM.DD
-  const timeP = parts[1] || '';
-  const el = document.getElementById('appVersionDiv');
-  if(el) el.textContent = 'v' + dateP + ' ' + timeP + ' TPE';
-})();
   applyLang();
   renderQuoteList();
   renderProductList();
