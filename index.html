@@ -263,7 +263,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.03</div>
+        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.05</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -425,7 +425,10 @@ img{display:block}
 
   <!-- Price table -->
   <div id="priceSec" style="display:none">
-    <div class="sec-title" id="fs-prices">Unit Prices (USD)</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <div class="sec-title" id="fs-prices" style="margin-bottom:0;flex:1">Unit Prices (USD)</div>
+      <button onclick="recalcAllPrices()" title="Recalculate all MOQ prices from 1K base" style="padding:4px 10px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx2);font-size:11px;cursor:pointer">⟳ Recalc from 1K</button>
+    </div>
     <div class="price-tbl" id="priceTbl"></div>
   </div>
 
@@ -1045,6 +1048,7 @@ function getFullFeatures(p, ql) {
 }
 const uid = () => 'Q'+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,4).toUpperCase();
 const fmtMoq = m => m>=1000?(m/1000)+'K':m;
+const MOQ_ADJ = {500:1.03, 1000:1.00, 2000:0.99, 3000:0.98, 5000:0.97, 10000:0.96, 20000:0.95};
 const prodById = id => PRODUCTS.find(p=>p.id===id);
 let _toast;
 function toast(msg,dur=2000){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(_toast);_toast=setTimeout(()=>el.classList.remove('show'),dur);}
@@ -1857,15 +1861,37 @@ function toggleProd(id){
     formSelProds=[...formSelProds,id];
     if(!formPrices[id]){
       formPrices[id]={};
-      // Auto-fill default 1K price from product
       const p=prodById(id);
       if(p?.defaultPrice){
-        formPrices[id][1000]=p.defaultPrice;
+        const base = parseFloat(p.defaultPrice);
+        formPrices[id][1000] = base;
+        // Auto-fill other MOQs based on 1K price
+        formMoqs.forEach(m => {
+          if(m === 1000) return;
+          const adj = MOQ_ADJ[m];
+          if(adj !== undefined) formPrices[id][m] = Math.round(base * adj * 100) / 100;
+        });
       }
     }
   }
   renderProdPicker();renderPriceTbl();
   if(navigator.vibrate)navigator.vibrate(8);
+}
+
+function recalcAllPrices(){
+  let changed=0;
+  formSelProds.forEach(id=>{
+    if(!formPrices[id]) return;
+    const base=parseFloat(formPrices[id][1000]);
+    if(!base) return;
+    formMoqs.forEach(m=>{
+      if(m===1000) return;
+      const adj=MOQ_ADJ[m];
+      if(adj!==undefined){ formPrices[id][m]=Math.round(base*adj*100)/100; changed++; }
+    });
+  });
+  renderPriceTbl();
+  toast(changed>0?'Prices recalculated from 1K ✅':'No 1K prices found');
 }
 function renderPriceTbl(){
   const sec=document.getElementById('priceSec');
@@ -1873,7 +1899,7 @@ function renderPriceTbl(){
   sec.style.display='block';
   const cols=`1fr ${formMoqs.map(()=>'70px').join(' ')} 32px`;
   const head=`<div class="pt-head" style="grid-template-columns:${cols}">
-    <span>${t('product')}</span>${formMoqs.map(m=>`<span>${fmtMoq(m)}</span>`).join('')}<span>$</span></div>`;
+    <span>${t('product')}</span>${formMoqs.map(m=>`<span>${fmtMoq(m)}</span>`).join('')}<span></span></div>`;
   const _priceSelSorted=[...formSelProds].sort((a,b)=>{
     const pa=prodById(a), pb=prodById(b);
     return (pa?.series||'').localeCompare(pb?.series||'');
@@ -1884,11 +1910,33 @@ function renderPriceTbl(){
     const ins=formMoqs.map(m=>`<input class="pt-input" type="number" min="0" step="0.01" placeholder="—" value="${formPrices[id][m]||''}" onchange="setPr('${id}',${m},this.value)">`).join('');
     return `<div class="pt-row" style="grid-template-columns:${cols}">
       <div><div class="pt-prod-name">${lx(p.name)}</div><div class="pt-prod-sub">${p.series}</div></div>
-      ${ins}<div style="font-size:9px;color:var(--tx3);text-align:center;line-height:1.2">USD</div></div>`;
+      ${ins}
+      <div style="display:flex;align-items:center;justify-content:center">
+        <button onclick="toggleProd('${id}')" title="Remove" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--tx3);border-radius:6px;display:flex;align-items:center;justify-content:center" onmouseover="this.style.color='#C8102E';this.style.background='rgba(200,16,46,.1)'" onmouseout="this.style.color='var(--tx3)';this.style.background='none'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+        </button>
+      </div>
+    </div>`;
   }).join('');
   document.getElementById('priceTbl').innerHTML=head+rows;
 }
-function setPr(id,moq,val){if(!formPrices[id])formPrices[id]={};formPrices[id][moq]=parseFloat(val)||'';}
+function setPr(id,moq,val){
+  if(!formPrices[id]) formPrices[id]={};
+  const v = parseFloat(val);
+  formPrices[id][moq] = v || '';
+  // If user changed the 1K price, auto-suggest other MOQ prices
+  if(moq === 1000 && v > 0){
+    formMoqs.forEach(m => {
+      if(m === 1000) return;
+      const adj = MOQ_ADJ[m];
+      if(adj !== undefined && !formPrices[id][m]){
+        // Only auto-fill if that MOQ price is empty
+        formPrices[id][m] = Math.round(v * adj * 100) / 100;
+      }
+    });
+    renderPriceTbl();
+  }
+}
 
 async function saveQuote(){
   const company=document.getElementById('f-company').value.trim();
@@ -2381,6 +2429,62 @@ async function downloadXLSX(id) {
   }
 }
 
+
+// ════════════════════════════════════════════════
+// PDF (HTML) — for non-Latin languages
+// ════════════════════════════════════════════════
+async function downloadPDFasHTML(q) {
+  const ql = q.lang || 'en';
+  const fmtM = m => m >= 1000 ? (m/1000)+'K' : String(m);
+  const fComp = (q.company||'QUOTE').replace(/\s+/g,'').substring(0,4).toUpperCase();
+  const fDate = (q.date||'').replace(/-/g,'').substring(2);
+  const fSeq  = String((QUOTES.filter(x=>x.company===q.company&&x.date===q.date).findIndex(x=>x.id===q.id)+1)).padStart(2,'0');
+  const fname = fComp+'_'+fDate+'_'+fSeq;
+  const hdrImgTag = HEADER_IMG_B64
+    ? '<img src="data:image/jpeg;base64,'+HEADER_IMG_B64+'" style="width:100%;height:auto;display:block">'
+    : '<div style="background:#C8102E;color:#fff;padding:12px 20px;font-size:20px;font-weight:bold">COMART CORPORATION</div>';
+  let prodRows = '';
+  for (let pi=0; pi<q.products.length; pi++) {
+    const pid=q.products[pi]; const p=prodById(pid); if(!p) continue;
+    const pName=(p.name&&(p.name[ql]||p.name.en))||p.series;
+    const pDesc=(p.features&&(p.features[ql]||p.features.en))||'';
+    const imgSrc=await getProdImgB64(pid);
+    const imgTag=imgSrc?'<img src="'+imgSrc+'" style="max-width:80px;max-height:80px;object-fit:contain">':'—';
+    const priceCells=q.moqTiers.map(m=>{const v=q.prices?.[pid]?.[m];return '<td style="text-align:center;padding:6px 4px;border:1px solid #ccc;font-size:11px">'+(v?parseFloat(v).toFixed(2):'—')+'</td>';}).join('');
+    const rmk=p.remark||({en:'Price excl. packaging.','zh-TW':'價格不含包裝。','zh-CN':'价格不含包装。',vi:'Giá không bao gồm bao bì.',ja:'価格は梱包を除く。'})[ql]||'';
+    prodRows+='<tr><td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;font-weight:bold;text-align:center">'+p.series+'</td><td style="padding:4px;border:1px solid #ccc;text-align:center">'+imgTag+'</td><td style="padding:6px 8px;border:1px solid #ccc;font-size:11px"><strong>'+pName+'</strong>'+(pDesc?'<br><span style="color:#555;font-size:10px">'+pDesc+'</span>':'')+'</td>'+priceCells+'<td style="padding:6px 8px;border:1px solid #ccc;font-size:10px;color:#555">'+rmk+'</td></tr>';
+  }
+  const _xlP=({en:'Price','zh-TW':'單價','zh-CN':'单价',vi:'Đơn giá',ja:'単価'})[ql]||'Price';
+  const priceHdrs=q.moqTiers.map(m=>'<th style="padding:6px 4px;background:#324d82;color:#fff;border:1px solid #2a3f6d;font-size:11px;text-align:center">'+_xlP+'<br>('+fmtM(m)+')</th>').join('');
+  const _lTO=({en:'TO','zh-TW':'致','zh-CN':'致',vi:'Kính gửi',ja:'宛先'})[ql]||'TO';
+  const _lATTN=({en:'ATTN','zh-TW':'收件人','zh-CN':'收件人',vi:'Người nhận',ja:'担当者'})[ql]||'ATTN';
+  const _lDATE=({en:'DATE','zh-TW':'日期','zh-CN':'日期',vi:'Ngày',ja:'日付'})[ql]||'DATE';
+  const _lPAY=({en:'PAYMENT','zh-TW':'付款條件','zh-CN':'付款条件',vi:'Thanh toán',ja:'支払条件'})[ql]||'PAYMENT';
+  const _lINCO=({en:'INCO TERM','zh-TW':'貿易條款','zh-CN':'贸易条款',vi:'Điều khoản',ja:'貿易条件'})[ql]||'INCO TERM';
+  const _lCUR=({en:'CURRENCY','zh-TW':'幣別','zh-CN':'币别',vi:'Đơn vị tiền',ja:'通貨'})[ql]||'CURRENCY';
+  const _lRMK=({en:'REMARK','zh-TW':'備注','zh-CN':'备注',vi:'GHI CHÚ',ja:'備考'})[ql]||'REMARK';
+  const _lQTIT=({en:'QUOTATION','zh-TW':'報價單','zh-CN':'报价单',vi:'BÁO GIÁ',ja:'見積書'})[ql]||'QUOTATION';
+  const _lPic=({en:'Picture','zh-TW':'圖片','zh-CN':'图片',vi:'Hình',ja:'画像'})[ql]||'Picture';
+  const _lFeat=(UI[ql]||UI.en).itemDesc||'Features';
+  const _lCode=(UI[ql]||UI.en).itemCode||'Item Code';
+  const _lRmkH=(UI[ql]||UI.en).defaultRemark||'Remark';
+  const notes=q.notes||[
+    ({en:'1. NO SPARE PARTS','zh-TW':'1. 不含備品','zh-CN':'1. 不含备品',vi:'1. Không bao gồm phụ tùng',ja:'1. スペアパーツなし'})[ql]||'1. NO SPARE PARTS',
+    '2. LEAD TIME: '+(SETTINGS.lead||'50 DAYS'),
+    '3. VALIDITY: '+(SETTINGS.valid||'30 DAYS'),
+    ({en:'4. PRICE SUBJECT TO CHANGE WITHOUT NOTICE','zh-TW':'4. 價格如有變動恕不另行通知','zh-CN':'4. 价格如有变动恕不另行通知',vi:'4. Giá có thể thay đổi không báo trước',ja:'4. 価格は予告なく変更する場合があります'})[ql]||'4. PRICE SUBJECT TO CHANGE WITHOUT NOTICE'
+  ].join('\n');
+  const googleFont=ql==='ja'?'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap">':(ql==='zh-TW'||ql==='zh-CN')?'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap">':'';
+  const fontFamily=ql==='ja'?"'Noto Sans JP',sans-serif":(ql==='zh-TW'||ql==='zh-CN')?"'Noto Sans TC',sans-serif":"Arial,sans-serif";
+  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+fname+'</title>'+googleFont+'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'+fontFamily+';font-size:12px;color:#222}@media print{.no-print{display:none!important}@page{size:A4 landscape;margin:10mm}}.no-print{background:#1a6fd4;color:#fff;padding:10px 20px;margin-bottom:12px;display:flex;gap:12px;align-items:center}.no-print button{background:#fff;color:#1a6fd4;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:bold}table{width:100%;border-collapse:collapse}.it td{padding:4px 8px;font-size:11px;border:1px solid #ddd}</style></head><body><div class="no-print"><span>🖨️ '+_lQTIT+' — '+fname+'.pdf</span><button onclick="window.print()">Print / Save as PDF</button><button onclick="window.close()">Close</button></div>'+hdrImgTag+'<div style="text-align:center;font-size:18px;font-weight:bold;padding:10px 0;border-bottom:2px solid #324d82">'+_lQTIT+'</div><table class="it" style="margin:8px 0"><tr><td style="width:25%"><strong>'+_lTO+':</strong> '+q.company+'</td><td style="width:25%"><strong>'+_lATTN+':</strong> '+(q.attn||'—')+'</td><td style="width:25%"><strong>'+_lDATE+':</strong> '+q.date+'</td><td style="width:25%"><strong>'+_lPAY+':</strong> '+(q.pay||SETTINGS.pay||'')+'</td></tr><tr><td>TEL: '+(q.tel||'—')+'</td><td>EMAIL: '+(q.email||'—')+'</td><td><strong>'+_lINCO+':</strong> '+(q.inco||SETTINGS.inco||'')+'</td><td><strong>'+_lCUR+':</strong> USD</td></tr></table><table style="margin-top:8px"><thead><tr><th style="padding:6px 8px;background:#324d82;color:#fff;border:1px solid #2a3f6d;font-size:11px;width:12%">'+_lCode+'</th><th style="padding:6px 8px;background:#324d82;color:#fff;border:1px solid #2a3f6d;font-size:11px;width:10%">'+_lPic+'</th><th style="padding:6px 8px;background:#324d82;color:#fff;border:1px solid #2a3f6d;font-size:11px">'+_lFeat+'</th>'+priceHdrs+'<th style="padding:6px 8px;background:#324d82;color:#fff;border:1px solid #2a3f6d;font-size:11px;width:18%">'+_lRmkH+'</th></tr></thead><tbody>'+prodRows+'</tbody></table><div style="margin-top:12px"><strong>'+_lRMK+':</strong><div style="margin-top:4px;font-size:11px;white-space:pre-line">'+notes+'</div></div></body></html>';
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const win=window.open(url,'_blank');
+  if(!win) toast('Pop-up blocked — please allow pop-ups');
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  toast('PDF opened — use Print to save as PDF');
+}
+
 // ════════════════════════════════════════════════
 // ════════════════════════════════════════════════
 // PDF DOWNLOAD — jsPDF (A4 portrait)
@@ -2389,6 +2493,14 @@ async function downloadPDF(id) {
   const q = QUOTES.find(x => x.id === id);
   if (!q) return;
 
+  const ql = q.lang || 'en';
+
+  // Non-English: use HTML output (browser fonts support CJK/Vietnamese)
+  if (ql !== 'en') {
+    downloadPDFasHTML(q);
+    return;
+  }
+
   const btn = document.getElementById(`pdfBtn_${id}`);
   const orig = btn?.innerHTML;
   if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Generating PDF…'; }
@@ -2396,8 +2508,6 @@ async function downloadPDF(id) {
   try {
     const { jsPDF } = window.jspdf;
     if (!jsPDF) throw new Error('jsPDF not loaded');
-
-    const ql = q.lang || 'en';
     const moqs = q.moqTiers;
     const fmtM = m => m >= 1000 ? (m/1000)+'K' : String(m);
 
@@ -2433,10 +2543,10 @@ async function downloadPDF(id) {
     // Right col: DATE, CURRENCY, INCO TERM, PAYMENT
     const col2 = ML + PW * 0.5;
     const clientPairs = [
-      { l: `TO: ${q.company}`,                          r: `DATE: ${q.date}` },
-      { l: `ATTN: ${q.attn || '—'}`,                    r: `CURRENCY: USD` },
-      { l: `TEL: ${q.tel || '—'}`,                      r: `INCO TERM: ${q.inco || SETTINGS.inco || '—'}` },
-      { l: `EMAIL: ${q.email || '—'}`,                  r: `PAYMENT: ${q.pay || SETTINGS.pay || '—'}` },
+      { l: `${({en:'TO','zh-TW':'致','zh-CN':'致',vi:'Kính gửi',ja:'宛先'})[ql]||'TO'}: ${q.company}`, r: `${({en:'DATE','zh-TW':'日期','zh-CN':'日期',vi:'Ngày',ja:'日付'})[ql]||'DATE'}: ${q.date}` },
+      { l: `${({en:'ATTN','zh-TW':'收件人','zh-CN':'收件人',vi:'Người nhận',ja:'担当者'})[ql]||'ATTN'}: ${q.attn || '—'}`, r: `${({en:'CURRENCY','zh-TW':'幣別','zh-CN':'币别',vi:'Đơn vị tiền',ja:'通貨'})[ql]||'CURRENCY'}: USD` },
+      { l: `TEL: ${q.tel || '—'}`, r: `${({en:'INCO TERM','zh-TW':'貿易條款','zh-CN':'贸易条款',vi:'Điều khoản',ja:'貿易条件'})[ql]||'INCO TERM'}: ${q.inco || SETTINGS.inco || '—'}` },
+      { l: `EMAIL: ${q.email || '—'}`, r: `${({en:'PAYMENT','zh-TW':'付款條件','zh-CN':'付款条件',vi:'Thanh toán',ja:'支払条件'})[ql]||'PAYMENT'}: ${q.pay || SETTINGS.pay || '—'}` },
     ];
     const infoH = clientPairs.length * 5.5 + 4;
     doc.setDrawColor(200,200,200);
@@ -2609,7 +2719,7 @@ async function downloadPDF(id) {
     y += 4;
     if (y > MT + PH - 35) { doc.addPage(); y = MT; }
     doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(40,40,40);
-    doc.text('REMARK:', ML, y); y += 5;
+    doc.text(({en:'REMARK:','zh-TW':'備注：','zh-CN':'备注：',vi:'GHI CHÚ:',ja:'備考：'})[ql]||'REMARK:', ML, y); y += 5;
     doc.setFont('helvetica','normal'); doc.setFontSize(8);
     const pdfRmks = q.notes ? q.notes.split('\n').filter(l => l.trim()) : [
       '1. NO SPARE PARTS',
