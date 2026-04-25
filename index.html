@@ -263,7 +263,7 @@ img{display:block}
       <div style="background:#C8102E;width:48px;height:48px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--fd);font-style:italic;font-size:22px;color:#fff;margin-bottom:10px">C</div>
       <div style="font-size:18px;font-weight:800;color:var(--tx)">COMART</div>
       <div style="font-size:11px;color:var(--tx3)">Quotation System</div>
-      <div id="loginVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;margin-top:4px">v2.09</div>
+      <div id="loginVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;margin-top:4px">v2.10</div>
     </div>
     <div style="background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:24px">
       <div class="field" style="margin-bottom:12px">
@@ -316,7 +316,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.09</div>
+        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.10</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -490,6 +490,24 @@ img{display:block}
     <button class="btn btn-primary btn-sm" onclick="openUserModal(null)">+ Add User</button>
   </div>
   <div class="card" id="userListContainer" style="margin:8px 12px"></div>
+
+  <!-- Activity Log section (admin only) -->
+  <div style="padding:8px 12px 4px;display:flex;align-items:center;gap:8px;margin-top:8px">
+    <div style="font-size:13px;font-weight:700;color:var(--tx);flex:1">📋 Activity Log</div>
+    <select id="logFilterType" onchange="renderLogTable()" style="padding:5px 8px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
+      <option value="">All Types</option>
+      <option value="quote">Quotations</option>
+      <option value="product">Products</option>
+      <option value="category">Categories</option>
+      <option value="user">Users</option>
+      <option value="settings">Settings</option>
+    </select>
+    <select id="logFilterUser" onchange="renderLogTable()" style="padding:5px 8px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
+      <option value="">All Users</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="renderLogTable()">↻ Refresh</button>
+  </div>
+  <div class="card" id="logTableContainer" style="margin:0 12px 12px;overflow-x:auto"></div>
 </div>
 
 <!-- ── PAGE: QUOTE FORM ────────────────────────────────── -->
@@ -869,6 +887,7 @@ const COL_P = 'products';
 const COL_S = 'settings';
 const COL_C = 'categories';
 const COL_U = 'users';
+const COL_L = 'logs';
 
 let currentUser = null; // { empId, nameEn, nameZh, ext, mobile, email, login, role, mustChangePwd }
 
@@ -1025,6 +1044,8 @@ async function deleteImgFromStorage(prodId) {
 async function saveOneP(idOrObj) {
   const p = (typeof idOrObj === 'object') ? idOrObj : PRODUCTS.find(x => x.id === idOrObj);
   if (!p) return;
+  const _isNewP = !PRODUCTS.find(x => x.id === p.id) || (typeof idOrObj === 'object');
+  writeLog('update', 'product', `${p.series||''} ${p.name?.en||''}`);
 
   let imgUrl = p.img || null;
 
@@ -1227,7 +1248,7 @@ function switchTab(tab){
   const puEl = document.getElementById('pageUsers'); if(puEl) puEl.classList.toggle('active',tab==='users');
   if(tab==='products') renderProductList();
   if(tab==='categories') renderCategoryList();
-  if(tab==='users') renderUsersPage();
+  if(tab==='users'){ renderUsersPage(); renderLogTable(); }
   // Keep nav visible for all home tabs
   document.getElementById('logoArea').style.display='flex';
   document.getElementById('navPills').style.display='flex';
@@ -2055,13 +2076,12 @@ function setPr(id,moq,val){
   if(!formPrices[id]) formPrices[id]={};
   const v = parseFloat(val);
   formPrices[id][moq] = v || '';
-  // If user changed the 1K price, auto-suggest other MOQ prices
+  // If user changed the 1K price, auto-fill ALL other MOQ prices (overwrite)
   if(moq === 1000 && v > 0){
     formMoqs.forEach(m => {
       if(m === 1000) return;
       const adj = MOQ_ADJ[m];
-      if(adj !== undefined && !formPrices[id][m]){
-        // Only auto-fill if that MOQ price is empty
+      if(adj !== undefined){
         formPrices[id][m] = Math.round(v * adj * 100) / 100;
       }
     });
@@ -2532,6 +2552,17 @@ async function downloadXLSX(id) {
       c.alignment = { vertical: 'middle' };
     });
 
+    // Sales person info
+    if (currentUser) {
+      const salesRow = rr + 1 + rmks.length + 1;
+      ws.getRow(salesRow).height = 15.6;
+      const salesLabel = ({en:'Sales:','zh-TW':'業務：','zh-CN':'业务：',vi:'Kinh doanh:',ja:'担当:'})[ql]||'Sales:';
+      const salesVal = `${salesLabel} ${currentUser.nameEn||currentUser.empId}   Email: ${currentUser.email||''}`;
+      const sc = ws.getCell(salesRow, 1);
+      sc.value = salesVal; sc.font = { ...TNR, size: 11, bold: false };
+      sc.alignment = { vertical: 'middle' };
+    }
+
     // Page setup
     ws.pageSetup = { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
 
@@ -2854,6 +2885,15 @@ async function downloadPDF(id) {
     ];
     pdfRmks.forEach(line => { doc.text(line, ML, y); y += 5; });
 
+    // Sales person info
+    if (currentUser) {
+      y += 3;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8);
+      const salesLabel = ({en:'Sales:','zh-TW':'業務：','zh-CN':'业务：',vi:'Kinh doanh:',ja:'担当:'})[ql]||'Sales:';
+      doc.text(`${salesLabel} ${currentUser.nameEn||currentUser.empId}   Email: ${currentUser.email||''}`, ML, y);
+      y += 5;
+    }
+
     // Filename: first 4 chars of company + YYMMDD + 2-digit sequence
     const fComp2 = (q.company||'QUOTE').replace(/\s+/g,'').substring(0,4).toUpperCase();
     const fDate2 = (q.date||'').replace(/-/g,'').substring(2);
@@ -3030,6 +3070,7 @@ async function doLogin() {
   // Login success
   currentUser = { ...user };
   try { localStorage.setItem(COL_U_SESSION, JSON.stringify({ empId: user.empId, login: user.login, ts: Date.now() })); } catch(_) {}
+  writeLog('login', 'user', `Login: ${user.login}`);
   hideLoginPage();
   updateUserBadge();
   if (user.mustChangePwd) {
@@ -3149,6 +3190,68 @@ async function ensureAdminExists() {
 
 // ── User list in Settings ──
 let USERS = [];
+
+async function renderLogTable() {
+  const container = document.getElementById('logTableContainer');
+  if (!container || !currentUser || currentUser.role !== 'admin') return;
+  container.innerHTML = '<div style="padding:12px;color:var(--tx3);font-size:12px">Loading…</div>';
+
+  const typeFilter = document.getElementById('logFilterType')?.value || '';
+  const userFilter = document.getElementById('logFilterUser')?.value || '';
+
+  try {
+    let query = db.collection(COL_L).orderBy('ts','desc').limit(200);
+    const snap = await query.get();
+    let logs = snap.docs.map(d => d.data());
+
+    // Populate user filter
+    const userSel = document.getElementById('logFilterUser');
+    if (userSel) {
+      const empIds = [...new Set(logs.map(l => l.empId))].sort();
+      const curVal = userSel.value;
+      userSel.innerHTML = '<option value="">All Users</option>' +
+        empIds.map(id => {
+          const u = logs.find(l => l.empId === id);
+          return `<option value="${id}">${u?.nameEn||id} (${id})</option>`;
+        }).join('');
+      userSel.value = curVal;
+    }
+
+    if (typeFilter) logs = logs.filter(l => l.type === typeFilter);
+    if (userFilter) logs = logs.filter(l => l.empId === userFilter);
+
+    if (!logs.length) {
+      container.innerHTML = '<div style="padding:12px;color:var(--tx3);font-size:12px">No logs found</div>';
+      return;
+    }
+
+    const actionColor = {
+      create: '#3DD68C', update: '#2D7FF9', delete: '#C8102E',
+      login: '#aaa', logout: '#aaa'
+    };
+
+    container.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="border-bottom:2px solid var(--br)">
+        <th style="padding:6px 8px;text-align:left;color:var(--tx3);font-weight:600;white-space:nowrap">TIME</th>
+        <th style="padding:6px 8px;text-align:left;color:var(--tx3);font-weight:600">USER</th>
+        <th style="padding:6px 8px;text-align:left;color:var(--tx3);font-weight:600">ACTION</th>
+        <th style="padding:6px 8px;text-align:left;color:var(--tx3);font-weight:600">TYPE</th>
+        <th style="padding:6px 8px;text-align:left;color:var(--tx3);font-weight:600">DETAIL</th>
+      </tr></thead>
+      <tbody>${logs.map(l => `
+        <tr style="border-bottom:1px solid var(--br)" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+          <td style="padding:6px 8px;color:var(--tx3);white-space:nowrap;font-family:var(--fm)">${l.date||''}</td>
+          <td style="padding:6px 8px;font-weight:600;color:var(--ac)">${l.nameEn||l.empId}</td>
+          <td style="padding:6px 8px"><span style="padding:2px 7px;border-radius:8px;font-size:10px;font-weight:700;background:${actionColor[l.action]||'#888'}22;color:${actionColor[l.action]||'#888'}">${l.action||''}</span></td>
+          <td style="padding:6px 8px;color:var(--tx2)">${l.type||''}</td>
+          <td style="padding:6px 8px;color:var(--tx2)">${l.detail||''}</td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  } catch(e) {
+    container.innerHTML = '<div style="padding:12px;color:#ff5555;font-size:12px">Error: ' + e.message + '</div>';
+  }
+}
+
 async function renderUsersPage() {
   if (!currentUser || currentUser.role !== 'admin') return;
   if (USE_FIREBASE) {
@@ -3257,6 +3360,26 @@ async function deleteUser() {
     await renderUsersPage();
     toast('User deleted');
   });
+}
+
+
+// ═══════════════════════════════════════
+// ACTIVITY LOG
+// ═══════════════════════════════════════
+async function writeLog(action, type, detail) {
+  if (!USE_FIREBASE || !currentUser) return;
+  try {
+    const log = {
+      ts: Date.now(),
+      date: new Date().toISOString().slice(0,19).replace('T',' '),
+      empId: currentUser.empId,
+      nameEn: currentUser.nameEn || currentUser.empId,
+      action,   // 'create' | 'update' | 'delete' | 'login' | 'logout'
+      type,     // 'quote' | 'product' | 'category' | 'user' | 'settings'
+      detail,   // human-readable description
+    };
+    await db.collection(COL_L).add(log);
+  } catch(e) { console.warn('writeLog:', e); }
 }
 
 // ═══════════════════════════════════════
