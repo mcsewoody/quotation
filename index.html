@@ -195,6 +195,10 @@ img{display:block}
 .pm-row:active{background:var(--s2)}
 .pm-thumb{width:50px;height:50px;border-radius:8px;background:linear-gradient(145deg,var(--s2),var(--bg));overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
 .pm-thumb img{width:85%;height:85%;object-fit:contain}
+.pm-thumb{position:relative}
+.pm-thumb:hover .img-hover-pop,.ppc-img:hover .img-hover-pop{display:flex}
+.img-hover-pop{display:none;position:fixed;z-index:8000;background:var(--s1);border:1px solid var(--br);border-radius:10px;padding:6px;box-shadow:0 8px 32px rgba(0,0,0,.6);pointer-events:none;align-items:center;justify-content:center}
+.img-hover-pop img{max-width:240px;max-height:240px;object-fit:contain;border-radius:6px;display:block}
 .pm-name{font-size:13px;font-weight:600;color:var(--tx);line-height:1.3}
 .pm-series{font-size:10px;color:var(--tx3);font-family:var(--fm);margin-top:2px}
 .pm-actions{display:flex;gap:5px}
@@ -259,7 +263,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2026.04.24</div>
+        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.00</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -312,10 +316,14 @@ img{display:block}
 
 <!-- ── PAGE: PRODUCTS ──────────────────────────────────── -->
 <div class="page" id="pageProducts">
-  <div style="padding:8px 12px 4px">
+  <div style="padding:8px 12px 4px;display:flex;gap:8px;align-items:center">
     <input id="prodSearch" type="search" placeholder="🔍  Search by Item Code, Name, Description…"
       oninput="renderProductList()"
-      style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px;outline:none;box-sizing:border-box">
+      style="flex:1;padding:9px 12px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px;outline:none;box-sizing:border-box">
+    <select id="prodCatFilter" onchange="renderProductList()"
+      style="padding:9px 10px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px;min-width:120px">
+      <option value="">All Categories</option>
+    </select>
   </div>
   <div class="card" id="productList"></div>
   <button class="fab" onclick="openProdModal(null)">
@@ -349,7 +357,7 @@ img{display:block}
     <div class="field-grid one" style="margin-bottom:16px">
       <div class="field">
         <label>Description (max 20 chars)</label>
-        <input id="cat-desc" maxlength="20" placeholder="e.g. Earphones & Earbuds" autocomplete="off">
+        <input id="cat-desc" maxlength="40" placeholder="e.g. Earphones & Earbuds" autocomplete="off">
       </div>
     </div>
     <div class="btn-row">
@@ -426,14 +434,7 @@ img{display:block}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
       <span id="saveQlbl">Save</span>
     </button>
-    <button class="btn btn-ghost" onclick="saveAndDownload('xlsx')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      XLSX
-    </button>
-    <button class="btn btn-ghost" onclick="saveAndDownload('pdf')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h6"/></svg>
-      PDF
-    </button>
+
     <button class="btn btn-danger btn-sm" id="delQBtn" style="display:none" onclick="deleteQuote()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
       <span id="delQlbl">Delete</span>
@@ -446,7 +447,13 @@ img{display:block}
 
   <!-- Products — at the bottom of the form -->
   <div style="margin-top:8px">
-    <div class="sec-title" id="fs-prods">Products</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div class="sec-title" id="fs-prods" style="margin-bottom:0;flex:1">Products</div>
+      <select id="pickerCatFilter" onchange="renderProdPicker()"
+        style="padding:5px 9px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px;min-width:110px">
+        <option value="">All Categories</option>
+      </select>
+    </div>
     <div class="prod-grid" id="prodPicker"></div>
   </div>
 
@@ -499,7 +506,10 @@ img{display:block}
         <div class="field-grid" style="margin-bottom:9px">
           <div class="field"><label id="pm-price-lbl">Default Price (1K, USD)</label><input id="pm-price" type="number" min="0" step="0.01" placeholder="0.00" autocomplete="off"></div>
           <div class="field"><label id="pm-remark-lbl">Default Remark</label><input id="pm-remark" placeholder="e.g. Price excl. packaging." autocomplete="off"></div>
-        <div class="field"><label>Category</label><select id="pm-cat" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px"><option value="">— None —</option></select></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="field"><label>Category 1</label><select id="pm-cat" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px"><option value="">— None —</option></select></div>
+        <div class="field"><label>Category 2</label><select id="pm-cat2" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px"><option value="">— None —</option></select></div>
+      </div>
         </div>
         <!-- Unified language selector -->
         <div>
@@ -521,7 +531,7 @@ img{display:block}
     </div>
 
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="saveProd()"><span id="pm-save">Save Product</span></button>
+      <button class="btn btn-primary" onclick="saveProd()"><span id="pm-save">Save</span></button>
       <button class="btn btn-ghost" onclick="closeProdModal()"><span id="pm-cancel">Cancel</span></button>
       <button class="btn btn-ghost btn-sm" id="pm-copy" style="display:none" onclick="copyProd()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -567,11 +577,11 @@ const UI = {
     qlang:'Output Language',status:'Status',inco:'Incoterm',pay:'Payment',notes:'Notes',
     moqLbl:'Select MOQ:',moqAdd:'+ Add',
     save:'Save',cancel:'Cancel',delete:'Delete',
-    download:'Download XLSX',edit:'Edit',copy:'Copy & Edit',markSent:'Mark Sent',
+    download:'XLSX',edit:'Edit',copy:'Copy & Edit',markSent:'Mark Sent',
     quoteDetail:'Quote Detail',prodDetail:'Products',terms:'Terms',
     validity:'Validity',leadTime:'Lead Time',incoterm:'Incoterm',payment:'Payment',currency:'Currency',
     noProds:'No products yet. Tap + to add.',noQuotes:'No quotations yet. Tap + to create.',noMatch:'No results.',
-    newProd:'New Product',editProd:'Edit Product',saveProd:'Save Product',
+    newProd:'New Product',editProd:'Edit Product',saveProd:'Save',
     settings:'Settings',uiLang:'UI Language',defaults:'Default Terms',
     lead:'Lead Time',valid:'Validity',defInco:'Default Incoterm',defPay:'Default Payment',
     saveSettings:'Save Settings',data:'Data',
@@ -587,7 +597,7 @@ const UI = {
     qlang:'報價單語言',status:'狀態',inco:'貿易條款',pay:'付款條件',notes:'備註',
     moqLbl:'選擇 MOQ：',moqAdd:'+ 新增',
     save:'儲存',cancel:'取消',delete:'刪除',
-    download:'下載 XLSX',edit:'編輯',copy:'複製並編輯',markSent:'標記已發送',
+    download:'XLSX',edit:'編輯',copy:'複製並編輯',markSent:'標記已發送',
     quoteDetail:'報價明細',prodDetail:'產品列表',terms:'交易條款',
     validity:'有效期',leadTime:'交期',incoterm:'貿易條款',payment:'付款條件',currency:'幣別',
     noProds:'尚無產品。點 + 新增。',noQuotes:'尚無報價。點 + 建立。',noMatch:'找不到結果。',
@@ -607,7 +617,7 @@ const UI = {
     qlang:'报价单语言',status:'状态',inco:'贸易条款',pay:'付款条件',notes:'备注',
     moqLbl:'选择 MOQ：',moqAdd:'+ 新增',
     save:'保存',cancel:'取消',delete:'删除',
-    download:'下载 XLSX',edit:'编辑',copy:'复制并编辑',markSent:'标记已发送',
+    download:'XLSX',edit:'编辑',copy:'复制并编辑',markSent:'标记已发送',
     quoteDetail:'报价明细',prodDetail:'产品列表',terms:'交易条款',
     validity:'有效期',leadTime:'交期',incoterm:'贸易条款',payment:'付款条件',currency:'币别',
     noProds:'暂无产品。点 + 新增。',noQuotes:'暂无报价。点 + 创建。',noMatch:'没有结果。',
@@ -627,7 +637,7 @@ const UI = {
     qlang:'Ngôn ngữ BG',status:'Trạng thái',inco:'Điều khoản',pay:'Thanh toán',notes:'Ghi chú',
     moqLbl:'Chọn MOQ:',moqAdd:'+ Thêm',
     save:'Lưu',cancel:'Hủy',delete:'Xóa',
-    download:'Tải XLSX',edit:'Sửa',copy:'Sao chép & Sửa',markSent:'Đánh dấu Đã gửi',
+    download:'XLSX',edit:'Sửa',copy:'Sao chép & Sửa',markSent:'Đánh dấu Đã gửi',
     quoteDetail:'Chi tiết Báo giá',prodDetail:'Sản phẩm',terms:'Điều khoản',
     validity:'Hiệu lực',leadTime:'TG Giao hàng',incoterm:'Điều khoản',payment:'Thanh toán',currency:'Đơn vị',
     noProds:'Chưa có sản phẩm. Nhấn + để thêm.',noQuotes:'Chưa có báo giá. Nhấn + để tạo.',noMatch:'Không tìm thấy.',
@@ -1144,7 +1154,23 @@ function renderCategoryList(){
   if(!el) return;
   if(!CATEGORIES.length){el.innerHTML='<div class="empty-box"><div class="ei">🏷️</div><p>No categories yet</p></div>';return;}
   const sorted=[...CATEGORIES].sort((a,b)=>(a.code||'').localeCompare(b.code||''));
-  el.innerHTML=sorted.map(c=>`<div class="pm-row" onclick="openCatModal('${c.id}')"><div style="display:flex;align-items:center;gap:12px;padding:4px 0"><span style="font-size:16px;font-weight:800;color:var(--ac);font-family:var(--fm);letter-spacing:.06em;min-width:38px">${c.code}</span><span style="font-size:13px;color:var(--tx2)">${c.desc||''}</span><span style="margin-left:auto;font-size:11px;color:var(--tx3)">${PRODUCTS.filter(p=>p.catId===c.id).length} products</span></div></div>`).join('');
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:2px solid var(--br)">
+      <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600;width:70px">CODE</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;color:var(--tx3);font-weight:600">DESCRIPTION</th>
+      <th style="padding:8px 12px;text-align:right;font-size:11px;color:var(--tx3);font-weight:600;width:90px">PRODUCTS</th>
+      <th style="padding:8px 12px;width:60px"></th>
+    </tr></thead>
+    <tbody>${sorted.map(c=>{
+      const cnt=PRODUCTS.filter(p=>p.catId===c.id||p.catId2===c.id).length;
+      return `<tr style="border-bottom:1px solid var(--br);transition:background .12s" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+        <td style="padding:10px 12px;font-size:14px;font-weight:800;color:var(--ac);letter-spacing:.06em">${c.code}</td>
+        <td style="padding:10px 12px;font-size:13px;color:var(--tx2)">${c.desc||''}</td>
+        <td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--tx3)">${cnt}</td>
+        <td style="padding:10px 12px;text-align:right"><button onclick="openCatModal('${c.id}')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--br);background:var(--s2);color:var(--tx2);font-size:11px;cursor:pointer">Edit</button></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
 }
 function openCatModal(id){
   editCatId=id;
@@ -1213,6 +1239,7 @@ function copyProd(){
       });
       if(src.img){tmpImg=src.img;const pi=document.getElementById('prodImg');if(pi){pi.src=src.img;pi.style.display='block';}const ph=document.getElementById('imgPh');if(ph)ph.style.display='none';}
       const cs=document.getElementById('pm-cat');if(cs&&src.catId)cs.value=src.catId;
+      const cs2=document.getElementById('pm-cat2');if(cs2&&src.catId2)cs2.value=src.catId2;
       const b64=localStorage.getItem('qi-img-b64-'+src.id);
       if(b64)try{localStorage.setItem('qi-img-b64-'+newId,b64);}catch(_){}
     },120);
@@ -1221,23 +1248,55 @@ function copyProd(){
   inp.addEventListener('keydown',e=>{if(e.key==='Enter')ov.querySelector('#_cpyOk').click();});
 }
 
+
+// ── Image hover preview ─────────────────
+function showImgPreview(el, src, event){
+  let pop = el.querySelector('.img-hover-pop');
+  if(!pop){ pop=document.createElement('div'); pop.className='img-hover-pop'; pop.innerHTML=`<img src="${src}">`; el.appendChild(pop); }
+  const vw=window.innerWidth, vh=window.innerHeight;
+  let x=event.clientX+16, y=event.clientY-130;
+  if(x+256>vw) x=event.clientX-272;
+  if(y<8) y=8;
+  if(y+256>vh) y=vh-264;
+  pop.style.left=x+'px'; pop.style.top=y+'px'; pop.style.display='flex';
+}
+function hideImgPreview(el){
+  const pop=el.querySelector('.img-hover-pop'); if(pop) pop.style.display='none';
+}
+
 function renderProductList(){
   document.getElementById('np-cnt-p').textContent=PRODUCTS.length;
   const el=document.getElementById('productList');
   if(!PRODUCTS.length){el.innerHTML=`<div class="empty-box"><div class="ei">📦</div><p>${t('noProds')}</p></div>`;return;}
+  // Populate category filter
+  const _pcf = document.getElementById('prodCatFilter');
+  if(_pcf){
+    const _pcfVal = _pcf.value;
+    _pcf.innerHTML = '<option value="">All Categories</option>' +
+      [...CATEGORIES].sort((a,b)=>a.code.localeCompare(b.code))
+        .map(c=>`<option value="${c.id}">${c.code} — ${c.desc}</option>`).join('');
+    _pcf.value = _pcfVal;
+  }
   const _sq=(document.getElementById('prodSearch')?.value||'').toLowerCase().trim();
+  const _catF = _pcf?.value || '';
   const _sorted=[...PRODUCTS].sort((a,b)=>(a.series||'').localeCompare(b.series||''));
-  const _disp=_sq?_sorted.filter(p=>(p.series||'').toLowerCase().includes(_sq)||Object.values(p.name||{}).some(v=>v&&v.toLowerCase().includes(_sq))||Object.values(p.features||{}).some(v=>v&&v.toLowerCase().includes(_sq))):_sorted;
+  let _disp=_sorted;
+  if(_catF) _disp=_disp.filter(p=>p.catId===_catF||p.catId2===_catF);
+  if(_sq) _disp=_disp.filter(p=>(p.series||'').toLowerCase().includes(_sq)||Object.values(p.name||{}).some(v=>v&&v.toLowerCase().includes(_sq))||Object.values(p.features||{}).some(v=>v&&v.toLowerCase().includes(_sq)));
   if(!_disp.length){el.innerHTML=`<div class="empty-box"><div class="ei">🔍</div><p>No results</p></div>`;return;}
   el.innerHTML=_disp.map(p=>`
     <div class="pm-row" onclick="openProdModal('${p.id}')">
-      <div class="pm-thumb">${p.img?`<img src="${p.img}" alt="">`:'📦'}</div>
+      <div class="pm-thumb" ${p.img?`onmouseover="showImgPreview(this,'${p.img}',event)" onmouseout="hideImgPreview(this)"`:``}>${p.img?`<img src="${p.img}" alt="">`:'📦'}</div>
       <div>
         <div class="pm-name">${lx(p.name)}</div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:3px">
           <span style="font-size:13px;font-weight:700;color:var(--ac);font-family:var(--fm);letter-spacing:.03em">${p.series}</span>
           ${p.defaultPrice?`<span style="font-size:13px;font-weight:600;color:#3DD68C;font-family:var(--fm)">$${p.defaultPrice.toFixed(2)}<span style="font-size:10px;color:var(--tx3);font-weight:400">/1K</span></span>`:''}
-          ${p.catId?(()=>{const _c=CATEGORIES.find(x=>x.id===p.catId);return _c?`<span style="font-size:10px;color:var(--tx3);background:var(--s2);padding:1px 6px;border-radius:4px;border:1px solid var(--br)">${_c.code}</span>`:''})():''}
+          ${(()=>{
+            const _c1=p.catId?CATEGORIES.find(x=>x.id===p.catId):null;
+            const _c2=p.catId2?CATEGORIES.find(x=>x.id===p.catId2):null;
+            return [_c1,_c2].filter(Boolean).map(c=>`<span style="font-size:10px;color:var(--tx3);background:var(--s2);padding:1px 6px;border-radius:4px;border:1px solid var(--br)">${c.code}</span>`).join(' ');
+          })()}
         </div>
       </div>
       <div class="pm-actions">
@@ -1284,11 +1343,16 @@ function openProdModal(id){
   }
   // Build multilang tabs & fields
   buildUnifiedML(p?.name||{}, p?.features||{});
-  // Populate category selector
-  const catSel = document.getElementById('pm-cat');
-  catSel.innerHTML = '<option value="">— None —</option>' +
+  // Populate category selectors
+  const _catOpts = '<option value="">— None —</option>' +
     [...CATEGORIES].sort((a,b)=>a.code.localeCompare(b.code))
-      .map(c=>`<option value="${c.id}" ${p?.catId===c.id?'selected':''}>${c.code} — ${c.desc}</option>`).join('');
+      .map(c=>`<option value="${c.id}">${c.code} — ${c.desc}</option>`).join('');
+  const catSel = document.getElementById('pm-cat');
+  catSel.innerHTML = _catOpts;
+  if(p?.catId) catSel.value = p.catId;
+  const catSel2 = document.getElementById('pm-cat2');
+  catSel2.innerHTML = _catOpts;
+  if(p?.catId2) catSel2.value = p.catId2;
   document.getElementById('prodOverlay').classList.add('show');
 }
 function closeProdModal(e){
@@ -1465,8 +1529,9 @@ async function saveProd(){
   const remark=document.getElementById('pm-remark').value.trim();
   const prodId = existing?.id || uid();
   const catId = document.getElementById('pm-cat')?.value || null;
+  const catId2 = document.getElementById('pm-cat2')?.value || null;
   const prod={
-    id:prodId,series,name,features,img:imgVal,catId:catId||null,
+    id:prodId,series,name,features,img:imgVal,catId:catId||null,catId2:catId2||null,
     defaultPrice,remark,
     createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()
   };
@@ -1597,10 +1662,22 @@ function toggleMoq(m){
 function addMoq(){const v=parseInt(prompt('Enter MOQ:'));if(v>0&&!formMoqs.includes(v)){formMoqs=[...formMoqs,v].sort((a,b)=>a-b);renderMoqChips();renderPriceTbl();}}
 
 function renderProdPicker(){
-  const _pickSorted=[...PRODUCTS].sort((a,b)=>(a.series||'').localeCompare(b.series||''));
+  // Populate category filter dropdown
+  const _pfSel = document.getElementById('pickerCatFilter');
+  if(_pfSel){
+    const _pfVal = _pfSel.value;
+    _pfSel.innerHTML = '<option value="">All Categories</option>' +
+      [...CATEGORIES].sort((a,b)=>a.code.localeCompare(b.code))
+        .map(c=>`<option value="${c.id}">${c.code} — ${c.desc}</option>`).join('');
+    _pfSel.value = _pfVal; // restore selection
+  }
+  const _catFilter = _pfSel?.value || '';
+  const _pickSorted=[...PRODUCTS]
+    .filter(p => !_catFilter || p.catId===_catFilter || p.catId2===_catFilter)
+    .sort((a,b)=>(a.series||'').localeCompare(b.series||''));
   document.getElementById('prodPicker').innerHTML=_pickSorted.map(p=>`
     <div class="prod-pick-card ${formSelProds.includes(p.id)?'sel':''}" onclick="toggleProd('${p.id}')">
-      <div class="ppc-img">${p.img?`<img src="${p.img}" alt="">`:'📦'}
+      <div class="ppc-img" ${p.img?`onmouseover="showImgPreview(this,'${p.img}',event)" onmouseout="hideImgPreview(this)"`:``}>${p.img?`<img src="${p.img}" alt="">`:'📦'}
         <div class="ppc-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
       </div>
       <div class="ppc-body">
@@ -2381,14 +2458,19 @@ function renderSettingsPage(){
   document.querySelectorAll('.lchip').forEach(b=>b.classList.toggle('on',b.textContent===LANG_LABELS[lang]));
 }
 function updateVersionStamp(){
-  const now = new Date();
-  const tpe = now.toLocaleString('zh-TW', {
-    timeZone:'Asia/Taipei', year:'2-digit', month:'2-digit',
-    day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false
-  });
-  const parts = tpe.replace(/\//g,'.').split(' ');
+  // Version: bump 0.01 each save, stored in localStorage
+  const APP_VER_KEY = 'qi-app-version';
+  let cur = parseFloat(localStorage.getItem(APP_VER_KEY) || '2.00');
+  cur = Math.round((cur + 0.01) * 100) / 100;
+  localStorage.setItem(APP_VER_KEY, cur.toFixed(2));
   const el = document.getElementById('appVersionDiv');
-  if(el) el.textContent = 'v20' + (parts[0]||'') + ' ' + (parts[1]||'') + ' TPE';
+  if(el) el.textContent = 'v' + cur.toFixed(2);
+}
+function initVersionDisplay(){
+  const APP_VER_KEY = 'qi-app-version';
+  const cur = parseFloat(localStorage.getItem(APP_VER_KEY) || '2.00');
+  const el = document.getElementById('appVersionDiv');
+  if(el) el.textContent = 'v' + cur.toFixed(2);
 }
 
 async function saveSettings(){
