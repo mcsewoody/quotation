@@ -256,6 +256,58 @@ img{display:block}
   Syncing with cloud…
 </div>
 
+<!-- ── LOGIN PAGE ──────────────────────────────── -->
+<div id="loginPage" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9990;flex-direction:column;align-items:center;justify-content:center">
+  <div style="width:340px;max-width:90vw">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="background:#C8102E;width:48px;height:48px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--fd);font-style:italic;font-size:22px;color:#fff;margin-bottom:10px">C</div>
+      <div style="font-size:18px;font-weight:800;color:var(--tx)">COMART</div>
+      <div style="font-size:11px;color:var(--tx3)">Quotation System</div>
+    </div>
+    <div style="background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:24px">
+      <div class="field" style="margin-bottom:12px">
+        <label style="font-size:13px;font-weight:600">Login Account</label>
+        <input id="loginEmail" type="email" placeholder="Email" autocomplete="username"
+          style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px;outline:none;box-sizing:border-box">
+      </div>
+      <div class="field" style="margin-bottom:16px">
+        <label style="font-size:13px;font-weight:600">Password</label>
+        <input id="loginPwd" type="password" placeholder="Password" autocomplete="current-password"
+          style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px;outline:none;box-sizing:border-box"
+          onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <div id="loginErr" style="color:#ff5555;font-size:12px;margin-bottom:10px;display:none;text-align:center"></div>
+      <button onclick="doLogin()" style="width:100%;padding:11px;border-radius:9px;background:var(--ac);color:#000;font-weight:700;border:none;cursor:pointer;font-size:14px">Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHANGE PASSWORD MODAL ─────────────────── -->
+<div id="changePwdOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9995;align-items:center;justify-content:center">
+  <div style="background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:24px;width:340px;max-width:90vw">
+    <div style="font-size:15px;font-weight:700;color:var(--tx);margin-bottom:4px" id="changePwdTitle">Change Password</div>
+    <div style="font-size:12px;color:var(--tx3);margin-bottom:16px" id="changePwdSubtitle">Enter your current and new password</div>
+    <div id="cpCurrentDiv" style="margin-bottom:10px">
+      <label style="font-size:12px;font-weight:600;color:var(--tx2);display:block;margin-bottom:4px">Current Password</label>
+      <input id="cpCurrent" type="password" placeholder="Current password" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px;outline:none;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:10px">
+      <label style="font-size:12px;font-weight:600;color:var(--tx2);display:block;margin-bottom:4px">New Password (min 8 chars)</label>
+      <input id="cpNew" type="password" placeholder="New password" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px;outline:none;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;font-weight:600;color:var(--tx2);display:block;margin-bottom:4px">Confirm New Password</label>
+      <input id="cpConfirm" type="password" placeholder="Repeat new password" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px;outline:none;box-sizing:border-box"
+        onkeydown="if(event.key==='Enter') doChangePwd()">
+    </div>
+    <div id="cpErr" style="color:#ff5555;font-size:12px;margin-bottom:10px;display:none"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="doChangePwd()" style="flex:1;padding:9px;border-radius:8px;background:var(--ac);color:#000;font-weight:700;border:none;cursor:pointer;font-size:13px">Save Password</button>
+      <button id="cpCancelBtn" onclick="closeChangePwd()" style="flex:1;padding:9px;border-radius:8px;background:var(--s2);color:var(--tx2);font-weight:600;border:1px solid var(--br);cursor:pointer;font-size:13px">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <div class="topbar">
   <div class="topbar-main">
     <div class="logo" id="logoArea">
@@ -263,7 +315,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.05</div>
+        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.06</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -277,6 +329,15 @@ img{display:block}
       <button class="icon-btn" onclick="refreshData()" id="refreshBtn" title="Refresh">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
       </button>
+      <div id="userBadge" style="display:none;align-items:center;gap:8px;margin-right:4px">
+        <div style="font-size:10px;color:var(--tx2);text-align:right;line-height:1.3" id="userBadgeName"></div>
+        <button onclick="showChangePwd(false)" title="Change Password" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--tx3)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </button>
+        <button onclick="doLogout()" title="Logout" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--tx3)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
       <button class="icon-btn" onclick="goPage('settings')" id="settingsBtn" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -364,6 +425,58 @@ img{display:block}
       <button class="btn btn-primary" onclick="saveCat()">Save</button>
       <button class="btn btn-ghost" onclick="closeCatModal()">Cancel</button>
       <button class="btn btn-danger btn-sm" id="cat-del" style="display:none" onclick="deleteCat()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── USER MODAL ─────────────────────────────────────── -->
+<div class="overlay" id="userOverlay" onclick="closeUserModal(event)">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-hd">
+      <div class="modal-title" id="user-modal-title">New User</div>
+      <button class="modal-close" onclick="closeUserModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="field">
+        <label>Employee ID (e.g. A00001)</label>
+        <input id="u-empId" maxlength="6" placeholder="A00001" autocomplete="off"
+          oninput="this.value=this.value.toUpperCase()"
+          style="font-family:var(--fm);font-weight:700;letter-spacing:.08em">
+      </div>
+      <div class="field">
+        <label>Role</label>
+        <select id="u-role" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="field"><label>English Name</label><input id="u-nameEn" placeholder="John Smith" autocomplete="off"></div>
+      <div class="field"><label>中文姓名</label><input id="u-nameZh" placeholder="王大明" autocomplete="off"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="field"><label>Extension (分機)</label><input id="u-ext" placeholder="123" autocomplete="off"></div>
+      <div class="field"><label>Mobile (手機)</label><input id="u-mobile" placeholder="+886 912 345 678" autocomplete="off"></div>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Email</label>
+      <input id="u-email" type="email" placeholder="john@comart.com" autocomplete="off">
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label>Login Account (default: Email)</label>
+      <input id="u-login" placeholder="john@comart.com" autocomplete="off">
+    </div>
+    <div id="u-pwd-section" style="margin-bottom:10px">
+      <div class="field">
+        <label id="u-pwd-label">Initial Password</label>
+        <input id="u-pwd" type="password" placeholder="Min 8 characters" autocomplete="new-password">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveUser()">Save</button>
+      <button class="btn btn-ghost" onclick="closeUserModal()">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="u-del-btn" style="display:none" onclick="deleteUser()">Delete</button>
     </div>
   </div>
 </div>
@@ -495,6 +608,15 @@ img{display:block}
     <div style="font-size:11px;color:var(--tx3);margin-top:6px">匯入時不會刪除現有產品，只新增或更新（以 Item Code 為準）</div>
   </div>
   <input type="file" id="xlsxImportFile" accept=".xlsx" style="display:none" onchange="importProductsXLSX(event)">
+
+  <!-- Users Management (Admin only) -->
+  <div id="usersMgmtSection" style="display:none;border-top:1px solid var(--br);padding-top:10px;margin-top:4px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--tx3);font-weight:600;flex:1">👥 User Management</div>
+      <button class="btn btn-outline btn-sm" onclick="openUserModal(null)">+ Add User</button>
+    </div>
+    <div id="userListContainer"></div>
+  </div>
   <div class="btn-row"><button class="btn btn-primary" onclick="saveSettings()"><span id="sg-save">Save Settings</span></button><button class="btn btn-ghost" onclick="precacheAllImages()">🖼 Cache Images for PDF/XLSX</button></div>
 </div>
 
@@ -742,6 +864,9 @@ const COL_Q = 'quotes';
 const COL_P = 'products';
 const COL_S = 'settings';
 const COL_C = 'categories';
+const COL_U = 'users';
+
+let currentUser = null; // { empId, nameEn, nameZh, ext, mobile, email, login, role, mustChangePwd }
 
 // ── Loading indicator helpers ──────────
 function showSyncing() { const el=document.getElementById('syncIndicator'); if(el) el.style.display='flex'; }
@@ -1103,7 +1228,7 @@ function switchTab(tab){
   document.getElementById('settingsBtn').style.display='flex';
 }
 function goPage(pg){
-  ['pageQuotes','pageProducts','pageCategories','pageForm','pageDetail','pageSettings'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  ['pageQuotes','pageProducts','pageCategories','pageForm','pageDetail','pageSettings'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('active'); });
   document.getElementById('page'+pg.charAt(0).toUpperCase()+pg.slice(1)).classList.add('active');
   const isHome=pg==='quotes'||pg==='products'||pg==='categories';
   document.getElementById('logoArea').style.display=isHome?'flex':'none';
@@ -2479,10 +2604,10 @@ async function downloadPDFasHTML(q) {
   const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+fname+'</title>'+googleFont+'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'+fontFamily+';font-size:12px;color:#222}@media print{.no-print{display:none!important}@page{size:A4 landscape;margin:10mm}}.no-print{background:#1a6fd4;color:#fff;padding:10px 20px;margin-bottom:12px;display:flex;gap:12px;align-items:center}.no-print button{background:#fff;color:#1a6fd4;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:bold}table{width:100%;border-collapse:collapse}.it td{padding:4px 8px;font-size:11px;border:1px solid #ddd}</style></head><body><div class="no-print"><span>🖨️ '+_lQTIT+' — '+fname+'.pdf</span><button onclick="window.print()">Print / Save as PDF</button><button onclick="window.close()">Close</button></div>'+hdrImgTag+'<div style="text-align:center;font-size:18px;font-weight:bold;padding:10px 0;border-bottom:2px solid #324d82">'+_lQTIT+'</div><table class="it" style="margin:8px 0"><tr><td style="width:25%"><strong>'+_lTO+':</strong> '+q.company+'</td><td style="width:25%"><strong>'+_lATTN+':</strong> '+(q.attn||'—')+'</td><td style="width:25%"><strong>'+_lDATE+':</strong> '+q.date+'</td><td style="width:25%"><strong>'+_lPAY+':</strong> '+(q.pay||SETTINGS.pay||'')+'</td></tr><tr><td>TEL: '+(q.tel||'—')+'</td><td>EMAIL: '+(q.email||'—')+'</td><td><strong>'+_lINCO+':</strong> '+(q.inco||SETTINGS.inco||'')+'</td><td><strong>'+_lCUR+':</strong> USD</td></tr></table><table style="margin-top:8px"><thead><tr><th style="padding:6px 8px;background:#324d82;color:#fff;border:1px solid #2a3f6d;font-size:11px;width:12%">'+_lCode+'</th><th style="padding:6px 8px;background:#324d82;color:#fff;border:1px solid #2a3f6d;font-size:11px;width:10%">'+_lPic+'</th><th style="padding:6px 8px;background:#324d82;color:#fff;border:1px solid #2a3f6d;font-size:11px">'+_lFeat+'</th>'+priceHdrs+'<th style="padding:6px 8px;background:#324d82;color:#fff;border:1px solid #2a3f6d;font-size:11px;width:18%">'+_lRmkH+'</th></tr></thead><tbody>'+prodRows+'</tbody></table><div style="margin-top:12px"><strong>'+_lRMK+':</strong><div style="margin-top:4px;font-size:11px;white-space:pre-line">'+notes+'</div></div></body></html>';
   const blob=new Blob([html],{type:'text/html;charset=utf-8'});
   const url=URL.createObjectURL(blob);
-  const win=window.open(url,'_blank');
-  if(!win) toast('Pop-up blocked — please allow pop-ups');
-  setTimeout(()=>URL.revokeObjectURL(url),10000);
-  toast('PDF opened — use Print to save as PDF');
+  const a=document.createElement('a');
+  a.href=url; a.download=fname+'.html'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  toast('✅ 已下載 HTML — 用瀏覽器開啟後按列印 → 存成 PDF');
 }
 
 // ════════════════════════════════════════════════
@@ -2751,6 +2876,8 @@ async function downloadPDF(id) {
 // SETTINGS
 // ═══════════════════════════════════════
 function renderSettingsPage(){
+  // Refresh user section when settings opened
+  setTimeout(renderSettingsUsersSection, 0);
   document.getElementById('s-lead').value=SETTINGS.lead||'';
   document.getElementById('s-valid').value=SETTINGS.valid||'';
   document.getElementById('s-inco').value=SETTINGS.inco||'';
@@ -2852,16 +2979,301 @@ window.refreshData = async function refreshData() {
   } finally { hideSyncing(); }
 }
 
+
+// ═══════════════════════════════════════════════
+// USER MANAGEMENT & AUTH
+// ═══════════════════════════════════════════════
+const COL_U_SESSION = 'qi-user-session';
+
+// SHA-256 hash
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ── Show / Hide Login Page ──
+function showLoginPage() {
+  const lp = document.getElementById('loginPage');
+  if (lp) { lp.style.display = 'flex'; }
+  // Hide main app
+  document.querySelector('.topbar').style.display = 'none';
+  const np = document.getElementById('navPillsRow');
+  if (np) np.style.display = 'none';
+}
+function hideLoginPage() {
+  const lp = document.getElementById('loginPage');
+  if (lp) lp.style.display = 'none';
+  document.querySelector('.topbar').style.display = '';
+  const np = document.getElementById('navPillsRow');
+  if (np) np.style.display = '';
+}
+
+// ── Login ──
+async function doLogin() {
+  const loginVal = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pwd      = document.getElementById('loginPwd').value;
+  const errEl    = document.getElementById('loginErr');
+  errEl.style.display = 'none';
+  if (!loginVal || !pwd) { errEl.textContent = 'Please enter login and password'; errEl.style.display='block'; return; }
+  const hash = await sha256(pwd);
+  let user = null;
+  if (USE_FIREBASE) {
+    try {
+      const snap = await db.collection(COL_U).where('login','==',loginVal).limit(1).get();
+      if (!snap.empty) user = snap.docs[0].data();
+    } catch(e) { console.error('login query:', e); }
+  }
+  if (!user) { errEl.textContent = 'Account not found'; errEl.style.display='block'; return; }
+  if (user.pwdHash !== hash) { errEl.textContent = 'Incorrect password'; errEl.style.display='block'; return; }
+  // Login success
+  currentUser = { ...user };
+  try { localStorage.setItem(COL_U_SESSION, JSON.stringify({ empId: user.empId, login: user.login, ts: Date.now() })); } catch(_) {}
+  hideLoginPage();
+  updateUserBadge();
+  if (user.mustChangePwd) {
+    showChangePwd(true); // force change
+  }
+  renderSettingsUsersSection();
+}
+
+// ── Logout ──
+function doLogout() {
+  if (!confirm('Logout?')) return;
+  currentUser = null;
+  try { localStorage.removeItem(COL_U_SESSION); } catch(_) {}
+  document.getElementById('userBadge').style.display = 'none';
+  showLoginPage();
+}
+
+// ── Update user badge in topbar ──
+function updateUserBadge() {
+  if (!currentUser) return;
+  const el = document.getElementById('userBadge');
+  const nm = document.getElementById('userBadgeName');
+  if (el) el.style.display = 'flex';
+  if (nm) nm.innerHTML = `<span style="font-weight:700;color:var(--tx)">${currentUser.nameEn||currentUser.empId}</span><br><span style="color:var(--tx3)">${currentUser.empId}</span>`;
+}
+
+// ── Restore session ──
+async function restoreSession() {
+  try {
+    const s = localStorage.getItem(COL_U_SESSION);
+    if (!s) return false;
+    const sess = JSON.parse(s);
+    // Session valid for 30 days
+    if (Date.now() - sess.ts > 30 * 86400000) { localStorage.removeItem(COL_U_SESSION); return false; }
+    if (USE_FIREBASE) {
+      const snap = await db.collection(COL_U).where('login','==',sess.login).limit(1).get();
+      if (!snap.empty) {
+        currentUser = snap.docs[0].data();
+        updateUserBadge();
+        renderSettingsUsersSection();
+        return true;
+      }
+    }
+  } catch(e) { console.warn('restoreSession:', e); }
+  return false;
+}
+
+// ── Change Password ──
+let _mustChangePwd = false;
+function showChangePwd(forced) {
+  _mustChangePwd = forced;
+  const ov = document.getElementById('changePwdOverlay');
+  const title = document.getElementById('changePwdTitle');
+  const sub = document.getElementById('changePwdSubtitle');
+  const cancelBtn = document.getElementById('cpCancelBtn');
+  const curDiv = document.getElementById('cpCurrentDiv');
+  ov.style.display = 'flex';
+  title.textContent = forced ? 'Set New Password' : 'Change Password';
+  sub.textContent = forced ? 'First login — please set your own password' : 'Enter your current and new password';
+  cancelBtn.style.display = forced ? 'none' : 'flex';
+  curDiv.style.display = forced ? 'none' : 'block';
+  document.getElementById('cpCurrent').value = '';
+  document.getElementById('cpNew').value = '';
+  document.getElementById('cpConfirm').value = '';
+  document.getElementById('cpErr').style.display = 'none';
+  setTimeout(() => document.getElementById(forced?'cpNew':'cpCurrent').focus(), 100);
+}
+function closeChangePwd() {
+  document.getElementById('changePwdOverlay').style.display = 'none';
+}
+async function doChangePwd() {
+  const errEl = document.getElementById('cpErr');
+  errEl.style.display = 'none';
+  const curPwd = document.getElementById('cpCurrent').value;
+  const newPwd = document.getElementById('cpNew').value;
+  const cfmPwd = document.getElementById('cpConfirm').value;
+  if (newPwd.length < 8) { errEl.textContent = 'New password must be at least 8 characters'; errEl.style.display='block'; return; }
+  if (newPwd !== cfmPwd) { errEl.textContent = 'Passwords do not match'; errEl.style.display='block'; return; }
+  if (!_mustChangePwd) {
+    const curHash = await sha256(curPwd);
+    if (curHash !== currentUser.pwdHash) { errEl.textContent = 'Current password incorrect'; errEl.style.display='block'; return; }
+  }
+  const newHash = await sha256(newPwd);
+  if (USE_FIREBASE) {
+    try {
+      await db.collection(COL_U).doc(currentUser.empId).update({ pwdHash: newHash, mustChangePwd: false });
+      currentUser.pwdHash = newHash;
+      currentUser.mustChangePwd = false;
+    } catch(e) { errEl.textContent = 'Save failed: ' + e.message; errEl.style.display='block'; return; }
+  }
+  closeChangePwd();
+  toast('✅ Password changed successfully');
+}
+
+// ── Admin: create default admin if no users exist ──
+async function ensureAdminExists() {
+  if (!USE_FIREBASE) return;
+  try {
+    const snap = await db.collection(COL_U).limit(1).get();
+    if (!snap.empty) return; // users exist
+    // Create default admin
+    const hash = await sha256('comart2026');
+    const admin = {
+      empId: 'A00001', nameEn: 'Admin', nameZh: '管理員',
+      ext: '', mobile: '', email: 'admin@comart.com',
+      login: 'admin@comart.com', pwdHash: hash,
+      role: 'admin', mustChangePwd: true,
+      createdAt: Date.now()
+    };
+    await db.collection(COL_U).doc('A00001').set(admin);
+    console.log('Default admin created: admin@comart.com / comart2026');
+  } catch(e) { console.warn('ensureAdminExists:', e); }
+}
+
+// ── User list in Settings ──
+let USERS = [];
+async function renderSettingsUsersSection() {
+  const sec = document.getElementById('usersMgmtSection');
+  if (!sec) return;
+  if (!currentUser || currentUser.role !== 'admin') { sec.style.display='none'; return; }
+  sec.style.display = 'block';
+  if (USE_FIREBASE) {
+    try {
+      const snap = await db.collection(COL_U).orderBy('empId','asc').get();
+      USERS = snap.docs.map(d => d.data());
+    } catch(e) { USERS = []; }
+  }
+  const container = document.getElementById('userListContainer');
+  if (!container) return;
+  if (!USERS.length) { container.innerHTML = '<div style="color:var(--tx3);font-size:12px">No users yet</div>'; return; }
+  container.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="border-bottom:2px solid var(--br)">
+      <th style="padding:6px 8px;text-align:left;color:var(--tx3);font-weight:600;font-size:11px">EMP ID</th>
+      <th style="padding:6px 8px;text-align:left;color:var(--tx3);font-weight:600;font-size:11px">NAME</th>
+      <th style="padding:6px 8px;text-align:left;color:var(--tx3);font-weight:600;font-size:11px">LOGIN</th>
+      <th style="padding:6px 8px;text-align:left;color:var(--tx3);font-weight:600;font-size:11px">ROLE</th>
+      <th style="padding:6px 8px;width:50px"></th>
+    </tr></thead>
+    <tbody>${USERS.map(u=>`
+      <tr style="border-bottom:1px solid var(--br)" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''">
+        <td style="padding:8px;font-weight:700;color:var(--ac);font-family:var(--fm)">${u.empId}</td>
+        <td style="padding:8px;color:var(--tx2)">${u.nameEn||''}${u.nameZh?' / '+u.nameZh:''}</td>
+        <td style="padding:8px;color:var(--tx3);font-size:11px">${u.login}</td>
+        <td style="padding:8px"><span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:${u.role==='admin'?'rgba(200,16,46,.15)':'var(--s2)'};color:${u.role==='admin'?'#C8102E':'var(--tx3)'}">${u.role}</span></td>
+        <td style="padding:8px;text-align:right"><button onclick="openUserModal('${u.empId}')" style="padding:3px 8px;border-radius:6px;border:1px solid var(--br);background:var(--s2);color:var(--tx2);font-size:11px;cursor:pointer">Edit</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+// ── User Modal ──
+let editUserId = null;
+function openUserModal(empId) {
+  editUserId = empId;
+  const u = empId ? USERS.find(x => x.empId === empId) : null;
+  document.getElementById('user-modal-title').textContent = u ? 'Edit User' : 'New User';
+  document.getElementById('u-empId').value = u?.empId || '';
+  document.getElementById('u-empId').disabled = !!u; // can't change empId
+  document.getElementById('u-role').value = u?.role || 'user';
+  document.getElementById('u-nameEn').value = u?.nameEn || '';
+  document.getElementById('u-nameZh').value = u?.nameZh || '';
+  document.getElementById('u-ext').value = u?.ext || '';
+  document.getElementById('u-mobile').value = u?.mobile || '';
+  document.getElementById('u-email').value = u?.email || '';
+  document.getElementById('u-login').value = u?.login || '';
+  document.getElementById('u-pwd').value = '';
+  document.getElementById('u-pwd-label').textContent = u ? 'Reset Password (leave blank to keep)' : 'Initial Password';
+  document.getElementById('u-del-btn').style.display = u ? 'inline-flex' : 'none';
+  document.getElementById('userOverlay').classList.add('show');
+}
+function closeUserModal(e) {
+  if (e && e.target !== document.getElementById('userOverlay')) return;
+  document.getElementById('userOverlay').classList.remove('show');
+}
+async function saveUser() {
+  const empId   = document.getElementById('u-empId').value.trim().toUpperCase();
+  const nameEn  = document.getElementById('u-nameEn').value.trim();
+  const nameZh  = document.getElementById('u-nameZh').value.trim();
+  const ext     = document.getElementById('u-ext').value.trim();
+  const mobile  = document.getElementById('u-mobile').value.trim();
+  const email   = document.getElementById('u-email').value.trim().toLowerCase();
+  const login   = (document.getElementById('u-login').value.trim() || email).toLowerCase();
+  const pwd     = document.getElementById('u-pwd').value;
+  const role    = document.getElementById('u-role').value;
+
+  // Validate
+  if (!empId) { toast('Employee ID required'); return; }
+  if (!/^[A-Z][0-9]{5}$/.test(empId)) { toast('Employee ID must be 1 letter + 5 digits (e.g. A00001)'); return; }
+  if (!nameEn) { toast('English name required'); return; }
+  if (!email) { toast('Email required'); return; }
+
+  const existing = editUserId ? USERS.find(x => x.empId === editUserId) : null;
+  if (!existing && !pwd) { toast('Initial password required for new user'); return; }
+  if (pwd && pwd.length < 8) { toast('Password must be at least 8 characters'); return; }
+
+  let pwdHash = existing?.pwdHash || '';
+  let mustChangePwd = existing?.mustChangePwd ?? true;
+  if (pwd) {
+    pwdHash = await sha256(pwd);
+    mustChangePwd = !existing; // new users must change pwd on first login
+  }
+
+  const user = {
+    empId, nameEn, nameZh, ext, mobile, email, login,
+    role, pwdHash, mustChangePwd,
+    createdAt: existing?.createdAt || Date.now(),
+    updatedAt: Date.now()
+  };
+
+  if (USE_FIREBASE) {
+    try { await db.collection(COL_U).doc(empId).set(user); }
+    catch(e) { toast('Save failed: ' + e.message); return; }
+  }
+  closeUserModal();
+  await renderSettingsUsersSection();
+  toast(existing ? 'User updated' : 'User created — initial password set');
+}
+async function deleteUser() {
+  if (!editUserId) return;
+  if (editUserId === currentUser?.empId) { toast('Cannot delete yourself'); return; }
+  await confirmDelete(editUserId, async () => {
+    if (USE_FIREBASE) {
+      try { await db.collection(COL_U).doc(editUserId).delete(); } catch(e) { return; }
+    }
+    closeUserModal();
+    await renderSettingsUsersSection();
+    toast('User deleted');
+  });
+}
+
 // ═══════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════
 async function init(){
   await loadAll();
+  await ensureAdminExists();
   applyLang();
   renderQuoteList();
   renderProductList();
   renderSettingsPage();
   document.querySelectorAll('.lchip').forEach(b=>b.classList.toggle('on',b.textContent===LANG_LABELS[lang]));
+
+  // Auth check
+  const loggedIn = await restoreSession();
+  if (!loggedIn) {
+    showLoginPage();
+  }
 }
 init();
 </script>
