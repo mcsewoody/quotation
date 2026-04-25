@@ -263,7 +263,7 @@ img{display:block}
       <div style="background:#C8102E;width:48px;height:48px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--fd);font-style:italic;font-size:22px;color:#fff;margin-bottom:10px">C</div>
       <div style="font-size:18px;font-weight:800;color:var(--tx)">COMART</div>
       <div style="font-size:11px;color:var(--tx3)">Quotation System</div>
-      <div id="loginVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;margin-top:4px">v2.07</div>
+      <div id="loginVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;margin-top:4px">v2.08</div>
     </div>
     <div style="background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:24px">
       <div class="field" style="margin-bottom:12px">
@@ -316,7 +316,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.07</div>
+        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.08</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -486,8 +486,8 @@ img{display:block}
 <!-- ── PAGE: USERS ────────────────────────────────────── -->
 <div class="page" id="pageUsers">
   <div style="padding:8px 12px 4px;display:flex;align-items:center;gap:8px">
-    <div style="font-size:13px;font-weight:700;color:var(--tx);flex:1">👥 User Management</div>
-    <button class="btn btn-outline btn-sm" onclick="openUserModal(null)">+ Add User</button>
+    <div style="font-size:13px;font-weight:700;color:var(--tx);flex:1">👥 Users</div>
+    <button class="btn btn-primary btn-sm" onclick="openUserModal(null)">+ Add User</button>
   </div>
   <div class="card" id="userListContainer" style="margin:8px 12px"></div>
 </div>
@@ -2167,10 +2167,10 @@ function renderDetail(id){
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         ${t('download')}
       </button>
-      <button class="btn btn-ghost" id="pdfBtn_${id}" onclick="downloadPDF('${id}')">
+      ${(q.lang||'en')==='en'?`<button class="btn btn-ghost" id="pdfBtn_${id}" onclick="downloadPDF('${id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h6"/></svg>
         PDF
-      </button>
+      </button>`:''}
       <button class="btn btn-ghost" onclick="openQuoteForm('${id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         ${t('edit')}
@@ -2994,18 +2994,20 @@ async function sha256(str) {
 // ── Show / Hide Login Page ──
 function showLoginPage() {
   const lp = document.getElementById('loginPage');
-  if (lp) { lp.style.display = 'flex'; }
-  // Hide main app
-  document.querySelector('.topbar').style.display = 'none';
-  const np = document.getElementById('navPillsRow');
-  if (np) np.style.display = 'none';
+  if (lp) lp.style.display = 'flex';
+  // Hide entire app UI
+  document.querySelector('.topbar')?.style && (document.querySelector('.topbar').style.display = 'none');
+  document.getElementById('navPills')?.style && (document.getElementById('navPills').style.display = 'none');
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
 }
 function hideLoginPage() {
   const lp = document.getElementById('loginPage');
   if (lp) lp.style.display = 'none';
-  document.querySelector('.topbar').style.display = '';
-  const np = document.getElementById('navPillsRow');
-  if (np) np.style.display = '';
+  document.querySelector('.topbar')?.style && (document.querySelector('.topbar').style.display = '');
+  document.getElementById('navPills')?.style && (document.getElementById('navPills').style.display = '');
+  // Restore pages
+  document.querySelectorAll('.page').forEach(p => p.style.display = '');
 }
 
 // ── Login ──
