@@ -263,7 +263,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.00</div>
+        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.03</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -447,12 +447,18 @@ img{display:block}
 
   <!-- Products — at the bottom of the form -->
   <div style="margin-top:8px">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-      <div class="sec-title" id="fs-prods" style="margin-bottom:0;flex:1">Products</div>
-      <select id="pickerCatFilter" onchange="renderProdPicker()"
-        style="padding:5px 9px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px;min-width:110px">
-        <option value="">All Categories</option>
-      </select>
+    <div style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div class="sec-title" id="fs-prods" style="margin-bottom:0;flex:1">Products</div>
+        <select id="pickerCatFilter" onchange="renderProdPicker()"
+          style="padding:5px 9px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px;min-width:110px">
+          <option value="">All Categories</option>
+        </select>
+        <button onclick="selectAllVisibleProds()" style="padding:5px 10px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx2);font-size:12px;cursor:pointer;white-space:nowrap">Select All</button>
+      </div>
+      <input id="pickerSearch" type="search" placeholder="🔍  Search item code, name, description…"
+        oninput="renderProdPicker()"
+        style="width:100%;padding:7px 10px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px;outline:none;box-sizing:border-box">
     </div>
     <div class="prod-grid" id="prodPicker"></div>
   </div>
@@ -1048,12 +1054,20 @@ function toast(msg,dur=2000){const el=document.getElementById('toast');el.textCo
 // ═══════════════════════════════════════
 function setLang(l){
   lang=l;try{localStorage.setItem('qi-lang-v2',l);}catch(e){}
-  applyLang();renderQuoteList();renderProductList();
+  applyLang();
+  // Re-render ALL pages instantly regardless of current page
+  renderQuoteList();
+  renderProductList();
+  renderCategoryList();
+  // If on form or detail, re-render those too
+  if(page==='form') { applyLang(); renderProdPicker(); renderPriceTbl(); renderMoqChips(); }
+  if(page==='detail' && editQId) renderDetail(editQId);
+  if(page==='settings') applyLang();
   document.querySelectorAll('.lchip').forEach(b=>b.classList.toggle('on',b.textContent===LANG_LABELS[l]));
 }
 function applyLang(){
   const s=(id,k)=>{const el=document.getElementById(id);if(el)el.textContent=t(k);};
-  s('np-quotes','quotes');s('np-products','products');
+  s('np-quotes','quotes');s('np-products','products');s('np-categories','categories');
   s('backLbl','back');
   s('fs-client','client');s('fs-moq','moqTiers');s('fs-prods','selectProds');s('fs-prices','prices');
   s('fl-company','company');s('fl-attn','attn');s('fl-email','email');s('fl-tel','tel');
@@ -1156,6 +1170,35 @@ function renderQuoteList(){
 // CATEGORIES
 // ═══════════════════════════════════════
 let editCatId = null;
+
+function filterUncategorized(){
+  switchTab('products');
+  const sf=document.getElementById('prodSearch'); if(sf) sf.value='';
+  const cf=document.getElementById('prodCatFilter'); if(cf) cf.value='__uncategorized__';
+  renderProductList();
+}
+
+function selectAllVisibleProds(){
+  const cards=document.querySelectorAll('#prodPicker .prod-pick-card');
+  let added=0;
+  cards.forEach(card=>{
+    const m=(card.getAttribute('onclick')||'').match(/toggleProd\('([^']+)'\)/);
+    if(!m) return;
+    const id=m[1];
+    if(!formSelProds.includes(id)){
+      formSelProds.push(id);
+      if(!formPrices[id]){
+        formPrices[id]={};
+        const p=prodById(id);
+        if(p?.defaultPrice) formPrices[id][1000]=p.defaultPrice;
+      }
+      added++;
+    }
+  });
+  renderProdPicker();renderPriceTbl();
+  toast(added>0?added+' products added':'All already selected');
+}
+
 function renderCategoryList(){
   const cntEl=document.getElementById('np-cnt-c');
   if(cntEl) cntEl.textContent=CATEGORIES.length;
@@ -1178,7 +1221,18 @@ function renderCategoryList(){
         <td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--tx3)">${cnt}</td>
         <td style="padding:10px 12px;text-align:right"><button onclick="openCatModal('${c.id}')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--br);background:var(--s2);color:var(--tx2);font-size:11px;cursor:pointer">Edit</button></td>
       </tr>`;
-    }).join('')}</tbody>
+    }).join('')}
+    ${(()=>{
+      const uncnt=PRODUCTS.filter(p=>!p.catId&&!p.catId2).length;
+      if(!uncnt) return '';
+      return `<tr style="border-bottom:1px solid var(--br);transition:background .12s;opacity:.75" onmouseover="this.style.background='var(--s2)'" onmouseout="this.style.background=''" onclick="filterUncategorized()">
+        <td style="padding:10px 12px;font-size:14px;font-weight:800;color:var(--tx3);letter-spacing:.06em">—</td>
+        <td style="padding:10px 12px;font-size:13px;color:var(--tx3);font-style:italic">Uncategorized</td>
+        <td style="padding:10px 12px;text-align:right;font-size:12px;color:var(--tx3)">${uncnt}</td>
+        <td style="padding:10px 12px;text-align:right"><button onclick="event.stopPropagation();filterUncategorized()" style="padding:4px 10px;border-radius:6px;border:1px solid var(--br);background:var(--s2);color:var(--tx3);font-size:11px;cursor:pointer">View</button></td>
+      </tr>`;
+    })()}
+    </tbody>
   </table>`;
 }
 function openCatModal(id){
@@ -1376,14 +1430,16 @@ function renderProductList(){
     const _pcfVal = _pcf.value;
     _pcf.innerHTML = '<option value="">All Categories</option>' +
       [...CATEGORIES].sort((a,b)=>a.code.localeCompare(b.code))
-        .map(c=>`<option value="${c.id}">${c.code} — ${c.desc}</option>`).join('');
+        .map(c=>`<option value="${c.id}">${c.code} — ${c.desc}</option>`).join('') +
+      '<option value="__uncategorized__">— Uncategorized —</option>';
     _pcf.value = _pcfVal;
   }
   const _sq=(document.getElementById('prodSearch')?.value||'').toLowerCase().trim();
   const _catF = _pcf?.value || '';
   const _sorted=[...PRODUCTS].sort((a,b)=>(a.series||'').localeCompare(b.series||''));
   let _disp=_sorted;
-  if(_catF) _disp=_disp.filter(p=>p.catId===_catF||p.catId2===_catF);
+  if(_catF === '__uncategorized__') _disp=_disp.filter(p=>!p.catId&&!p.catId2);
+  else if(_catF) _disp=_disp.filter(p=>p.catId===_catF||p.catId2===_catF);
   if(_sq) _disp=_disp.filter(p=>(p.series||'').toLowerCase().includes(_sq)||Object.values(p.name||{}).some(v=>v&&v.toLowerCase().includes(_sq))||Object.values(p.features||{}).some(v=>v&&v.toLowerCase().includes(_sq)));
   if(!_disp.length){el.innerHTML=`<div class="empty-box"><div class="ei">🔍</div><p>No results</p></div>`;return;}
   el.innerHTML=_disp.map(p=>`
@@ -1770,13 +1826,19 @@ function renderProdPicker(){
     const _pfVal = _pfSel.value;
     _pfSel.innerHTML = '<option value="">All Categories</option>' +
       [...CATEGORIES].sort((a,b)=>a.code.localeCompare(b.code))
-        .map(c=>`<option value="${c.id}">${c.code} — ${c.desc}</option>`).join('');
+        .map(c=>`<option value="${c.id}">${c.code} — ${c.desc}</option>`).join('') +
+      '<option value="__uncategorized__">— Uncategorized —</option>';
     _pfSel.value = _pfVal; // restore selection
   }
   const _catFilter = _pfSel?.value || '';
-  const _pickSorted=[...PRODUCTS]
-    .filter(p => !_catFilter || p.catId===_catFilter || p.catId2===_catFilter)
-    .sort((a,b)=>(a.series||'').localeCompare(b.series||''));
+  const _psq = (document.getElementById('pickerSearch')?.value||'').toLowerCase().trim();
+  let _pickSorted=[...PRODUCTS].sort((a,b)=>(a.series||'').localeCompare(b.series||''));
+  if(_catFilter === '__uncategorized__') _pickSorted=_pickSorted.filter(p=>!p.catId&&!p.catId2);
+  else if(_catFilter) _pickSorted=_pickSorted.filter(p=>p.catId===_catFilter||p.catId2===_catFilter);
+  if(_psq) _pickSorted=_pickSorted.filter(p=>
+    (p.series||'').toLowerCase().includes(_psq)||
+    Object.values(p.name||{}).some(v=>v&&v.toLowerCase().includes(_psq))||
+    Object.values(p.features||{}).some(v=>v&&v.toLowerCase().includes(_psq)));
   document.getElementById('prodPicker').innerHTML=_pickSorted.map(p=>`
     <div class="prod-pick-card ${formSelProds.includes(p.id)?'sel':''}" onclick="toggleProd('${p.id}')">
       <div class="ppc-img" ${p.img?`onmouseover="showImgPreview(this,'${p.img}',event)" onmouseout="hideImgPreview(this)"`:``}>${p.img?`<img src="${p.img}" alt="">`:'📦'}
@@ -2125,16 +2187,25 @@ async function downloadXLSX(id) {
     ws.getRow(3).height = 34.05;
     ws.mergeCells(3, 1, 3, lastCol);
     const r3 = ws.getCell(3, 1);
-    r3.value = 'QUOTATION';
+    r3.value = ({en:'QUOTATION','zh-TW':'報價單','zh-CN':'报价单',vi:'BÁO GIÁ',ja:'見積書'})[ql]||'QUOTATION';
     r3.font = { ...TNR, bold: true, size: 16 };
     r3.alignment = { horizontal: 'center', vertical: 'middle' };
     // no extra border on QUOTATION title row
 
     // ── Rows 4-6: Client info ────────────────────────
+    const _xlT = (UI[ql]||UI.en);
+    const _lTO   = ({en:'TO','zh-TW':'致','zh-CN':'致',vi:'Kính gửi',ja:'宛先'})[ql]||'TO';
+    const _lATTN = ({en:'ATTN','zh-TW':'收件人','zh-CN':'收件人',vi:'Người nhận',ja:'担当者'})[ql]||'ATTN';
+    const _lPAY  = ({en:'PAYMENT','zh-TW':'付款條件','zh-CN':'付款条件',vi:'Thanh toán',ja:'支払条件'})[ql]||'PAYMENT';
+    const _lTEL  = 'TEL';
+    const _lDATE = ({en:'DATE','zh-TW':'日期','zh-CN':'日期',vi:'Ngày',ja:'日付'})[ql]||'DATE';
+    const _lINCO = ({en:'INCO TERM','zh-TW':'貿易條款','zh-CN':'贸易条款',vi:'Điều khoản',ja:'貿易条件'})[ql]||'INCO TERM';
+    const _lFAX  = 'FAX';
+    const _lCUR  = ({en:'CURRENCY','zh-TW':'幣別','zh-CN':'币别',vi:'Đơn vị tiền',ja:'通貨'})[ql]||'CURRENCY';
     const clientRows = [
-      [`TO: ${q.company}`, null, `ATTN: ${q.attn||''}`, null, `PAYMENT: ${q.pay||SETTINGS.pay||''}`, null],
-      [`TEL: ${q.tel||''}`, null, `DATE: ${q.date}`, null, `INCO TERM: ${q.inco||SETTINGS.inco||''}`, null],
-      [`FAX: `, null, null, null, `CURRENCY: USD`, null],
+      [`${_lTO}: ${q.company}`, null, `${_lATTN}: ${q.attn||''}`, null, `${_lPAY}: ${q.pay||SETTINGS.pay||''}`, null],
+      [`${_lTEL}: ${q.tel||''}`, null, `${_lDATE}: ${q.date}`, null, `${_lINCO}: ${q.inco||SETTINGS.inco||''}`, null],
+      [`${_lFAX}: `, null, null, null, `${_lCUR}: USD`, null],
     ];
     clientRows.forEach((row, ri) => {
       const r = ri + 4;
@@ -2152,8 +2223,12 @@ async function downloadXLSX(id) {
 
     // ── Row 7: Column headers ────────────────────────
     ws.getRow(7).height = 31.5;
-    const hdrs = ['Item Code', 'Picture', 'Features',
-      ...moqs.map(m => `Price\n(${fmtM(m)})`), 'Remark'];
+    const _xlUI = (UI[ql]||UI.en);
+    const _xlPic   = ({en:'Picture','zh-TW':'圖片','zh-CN':'图片',vi:'Hình ảnh',ja:'画像'})[ql]||'Picture';
+    const _xlPrice = ({en:'Price','zh-TW':'單價','zh-CN':'单价',vi:'Đơn giá',ja:'単価'})[ql]||'Price';
+    const _xlRmk   = _xlUI.defaultRemark || 'Remark';
+    const hdrs = [_xlUI.itemCode||'Item Code', _xlPic, (_xlUI.itemName||'Item Name')+' / '+(_xlUI.itemDesc||'Features'),
+      ...moqs.map(m => `${_xlPrice}\n(${fmtM(m)})`), _xlRmk];
     hdrs.forEach((h, ci) => {
       const c = ws.getCell(7, ci+1);
       c.value = h;
@@ -2220,7 +2295,13 @@ async function downloadXLSX(id) {
 
       // Remark
       const cr = ws.getCell(r, 4+moqs.length);
-      cr.value = p.remark || 'The price only includes product listed. No packaging cost is included.';
+      cr.value = p.remark || ({
+        en:'The price only includes product listed. No packaging cost is included.',
+        'zh-TW':'價格不含包裝費用。',
+        'zh-CN':'价格不含包装费用。',
+        vi:'Giá chỉ bao gồm sản phẩm. Không bao gồm chi phí đóng gói.',
+        ja:'価格は製品のみ。梱包費用は含まれません。'
+      })[ql] || 'The price only includes product listed. No packaging cost is included.';
       cr.font = { ...TNR, size: 11 };
       cr.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
       cr.border = { top: top, bottom: bot, left: thin, right: med };
@@ -2254,7 +2335,7 @@ async function downloadXLSX(id) {
     // ── Remarks ──────────────────────────────────────
     const rr = 8 + q.products.length;
     ws.getRow(rr).height = 14;
-    ws.getCell(rr, 1).value = 'REMARK:';
+    ws.getCell(rr, 1).value = ({en:'REMARK:','zh-TW':'備注：','zh-CN':'备注：',vi:'GHI CHÚ:',ja:'備考：'})[ql]||'REMARK:';
     ws.getCell(rr, 1).font = { ...TNR, bold: true, size: 12 };
 
     // Notes field contains the full remark text (editable by user)
@@ -2384,12 +2465,13 @@ async function downloadPDF(id) {
     doc.setFontSize(7.5);
     doc.setTextColor(255,255,255);
 
+    const _qlUI = (UI[ql]||UI.en);
     const hdrCols = [
-      { label: 'Item Code', w: colW.code },
-      { label: 'Picture',   w: colW.pic  },
-      { label: 'Features',  w: colW.feat },
-      ...moqs.map(m => ({ label: `Price\n(${fmtM(m)})`, w: priceW })),
-      { label: 'Remark', w: colW.remark },
+      { label: _qlUI.itemCode||'Item Code', w: colW.code },
+      { label: ({en:'Picture','zh-TW':'圖片','zh-CN':'图片',vi:'Hình',ja:'画像'})[ql]||'Picture', w: colW.pic  },
+      { label: _qlUI.itemDesc||'Features',  w: colW.feat },
+      ...moqs.map(m => ({ label: (({en:'Price','zh-TW':'價格','zh-CN':'价格',vi:'Giá',ja:'価格'})[ql]||'Price')+'\n('+fmtM(m)+')', w: priceW })),
+      { label: _qlUI.defaultRemark||'Remark', w: colW.remark },
     ];
     let cx = ML;
     hdrCols.forEach(col => {
@@ -2417,7 +2499,13 @@ async function downloadPDF(id) {
       doc.setFontSize(5.5); // smaller font for code column sizing
       const codeLines = doc.splitTextToSize(p.series, colW.code - 2);
       doc.setFontSize(7.5); // restore
-      const remText   = p.remark || 'Price excl. packaging. MOQ 1,000 pcs/SKU.';
+      const remText = p.remark || ({
+        en:'Price excl. packaging. MOQ 1,000 pcs/SKU.',
+        'zh-TW':'價格不含包裝。最低訂量 1,000 pcs/SKU。',
+        'zh-CN':'价格不含包装。最低订量 1,000 pcs/SKU。',
+        vi:'Giá không bao gồm bao bì. MOQ 1.000 pcs/SKU.',
+        ja:'価格は梱包を除く。最小発注数 1,000 pcs/SKU。'
+      })[ql] || 'Price excl. packaging. MOQ 1,000 pcs/SKU.';
       const remLines  = doc.splitTextToSize(remText, colW.remark - 2);
       const rowH = Math.max(28, Math.max(featLines.length, remLines.length) * 4 + 8);
 
@@ -2559,21 +2647,8 @@ function renderSettingsPage(){
   document.getElementById('s-pay').value=SETTINGS.pay||'';
   document.querySelectorAll('.lchip').forEach(b=>b.classList.toggle('on',b.textContent===LANG_LABELS[lang]));
 }
-function updateVersionStamp(){
-  // Version: bump 0.01 each save, stored in localStorage
-  const APP_VER_KEY = 'qi-app-version';
-  let cur = parseFloat(localStorage.getItem(APP_VER_KEY) || '2.00');
-  cur = Math.round((cur + 0.01) * 100) / 100;
-  localStorage.setItem(APP_VER_KEY, cur.toFixed(2));
-  const el = document.getElementById('appVersionDiv');
-  if(el) el.textContent = 'v' + cur.toFixed(2);
-}
-function initVersionDisplay(){
-  const APP_VER_KEY = 'qi-app-version';
-  const cur = parseFloat(localStorage.getItem(APP_VER_KEY) || '2.00');
-  const el = document.getElementById('appVersionDiv');
-  if(el) el.textContent = 'v' + cur.toFixed(2);
-}
+function updateVersionStamp(){ /* version managed in code */ }
+function initVersionDisplay(){ /* version is fixed in HTML */ }
 
 async function saveSettings(){
   SETTINGS={lead:document.getElementById('s-lead').value.trim(),valid:document.getElementById('s-valid').value.trim(),inco:document.getElementById('s-inco').value.trim(),pay:document.getElementById('s-pay').value.trim()};
