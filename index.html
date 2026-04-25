@@ -472,11 +472,20 @@ img{display:block}
     <div class="sg-row"><div class="sg-lbl"><div class="k" id="sg-pay">Default Payment</div></div><input class="sg-inp" id="s-pay" placeholder="T/T 30%+70%"></div>
   </div>
   <div class="sec-title" id="sg-data-title">Data</div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
     <button class="btn btn-outline btn-sm" onclick="exportData()">Export JSON</button>
     <button class="btn btn-outline btn-sm" onclick="document.getElementById('importFile').click()">Import JSON</button>
   </div>
   <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+  <div style="border-top:1px solid var(--br);padding-top:10px;margin-top:4px">
+    <div style="font-size:12px;color:var(--tx3);margin-bottom:8px;font-weight:600">📦 Product Import / Export</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="downloadProductTemplate()">⬇ Download Template</button>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('xlsxImportFile').click()">⬆ Import Products XLSX</button>
+    </div>
+    <div style="font-size:11px;color:var(--tx3);margin-top:6px">匯入時不會刪除現有產品，只新增或更新（以 Item Code 為準）</div>
+  </div>
+  <input type="file" id="xlsxImportFile" accept=".xlsx" style="display:none" onchange="importProductsXLSX(event)">
   <div class="btn-row"><button class="btn btn-primary" onclick="saveSettings()"><span id="sg-save">Save Settings</span></button><button class="btn btn-ghost" onclick="precacheAllImages()">🖼 Cache Images for PDF/XLSX</button></div>
 </div>
 
@@ -1263,6 +1272,99 @@ function showImgPreview(el, src, event){
 function hideImgPreview(el){
   const pop=el.querySelector('.img-hover-pop'); if(pop) pop.style.display='none';
 }
+
+
+// ═══════════════════════════════════════
+// PRODUCT XLSX IMPORT / EXPORT
+// ═══════════════════════════════════════
+const PROD_XLSX_COLS = [
+  { key: 'series',        label: 'Item Code *' },
+  { key: 'cat1code',      label: 'Category 1 Code' },
+  { key: 'cat2code',      label: 'Category 2 Code' },
+  { key: 'defaultPrice',  label: 'Default Price (1K USD)' },
+  { key: 'remark',        label: 'Default Remark' },
+  { key: 'name_en',       label: 'Name EN *' },
+  { key: 'name_zhTW',     label: 'Name 繁中' },
+  { key: 'name_zhCN',     label: 'Name 简中' },
+  { key: 'name_vi',       label: 'Name Việt' },
+  { key: 'name_ja',       label: 'Name 日本語' },
+  { key: 'feat_en',       label: 'Description EN' },
+  { key: 'feat_zhTW',     label: 'Description 繁中' },
+  { key: 'feat_zhCN',     label: 'Description 简中' },
+  { key: 'feat_vi',       label: 'Description Việt' },
+  { key: 'feat_ja',       label: 'Description 日本語' },
+];
+
+async function downloadProductTemplate() {
+  if (typeof ExcelJS === 'undefined') { toast('ExcelJS not loaded'); return; }
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Products');
+  ws.addRow(PROD_XLSX_COLS.map(c => c.label));
+  const hdrRow = ws.getRow(1);
+  hdrRow.eachCell(cell => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A6FD4' } };
+    cell.alignment = { wrapText: true, vertical: 'middle' };
+  });
+  if (PRODUCTS.length > 0) {
+    const p = PRODUCTS[0];
+    const c1 = CATEGORIES.find(c => c.id === p.catId);
+    const c2 = CATEGORIES.find(c => c.id === p.catId2);
+    ws.addRow([p.series||'',c1?.code||'',c2?.code||'',p.defaultPrice||'',p.remark||'',
+      p.name?.en||'',p.name?.['zh-TW']||'',p.name?.['zh-CN']||'',p.name?.vi||'',p.name?.ja||'',
+      p.features?.en||'',p.features?.['zh-TW']||'',p.features?.['zh-CN']||'',p.features?.vi||'',p.features?.ja||'']);
+    ws.getRow(2).font = { color: { argb: 'FF888888' }, italic: true };
+  }
+  for (let i = 0; i < 5; i++) ws.addRow([]);
+  const widths = [16,12,12,14,30,28,28,28,28,28,40,40,40,40,40];
+  ws.columns.forEach((col,i) => { col.width = widths[i]||20; });
+  const ws2 = wb.addWorksheet('Categories (Reference)');
+  ws2.addRow(['Code','Description']); ws2.getRow(1).font = { bold: true };
+  [...CATEGORIES].sort((a,b)=>a.code.localeCompare(b.code)).forEach(c => ws2.addRow([c.code,c.desc]));
+  ws2.columns = [{width:10},{width:40}];
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='COMART_Product_Import_Template.xlsx'; a.click(); URL.revokeObjectURL(url);
+  toast('Template downloaded');
+}
+
+async function importProductsXLSX(event) {
+  const file = event.target.files[0]; event.target.value='';
+  if (!file) return;
+  if (typeof ExcelJS === 'undefined') { toast('ExcelJS not loaded'); return; }
+  toast('Reading XLSX...');
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook(); await wb.xlsx.load(buf);
+    const ws = wb.worksheets[0];
+    const headers = [];
+    ws.getRow(1).eachCell((cell,ci) => { headers[ci] = (cell.value||'').toString().trim(); });
+    const colIdx = {};
+    PROD_XLSX_COLS.forEach(c => { const idx=headers.findIndex(h=>h===c.label); if(idx>-1) colIdx[c.key]=idx; });
+    if (colIdx['series'] === undefined) { toast('Cannot find "Item Code *" column'); return; }
+    let added=0, updated=0, skipped=0;
+    for (let ri=2; ri<=ws.rowCount; ri++) {
+      const row = ws.getRow(ri);
+      const getVal = key => { const ci=colIdx[key]; if(ci===undefined) return ''; const v=row.getCell(ci).value; return v===null||v===undefined?'':v.toString().trim(); };
+      const series = getVal('series'); if (!series) { skipped++; continue; }
+      const cat1code=getVal('cat1code').toUpperCase(), cat2code=getVal('cat2code').toUpperCase();
+      const catId=cat1code?(CATEGORIES.find(c=>c.code===cat1code)?.id||null):null;
+      const catId2=cat2code?(CATEGORIES.find(c=>c.code===cat2code)?.id||null):null;
+      const price=parseFloat(getVal('defaultPrice'))||null, remark=getVal('remark')||null;
+      const name={en:getVal('name_en'),'zh-TW':getVal('name_zhTW'),'zh-CN':getVal('name_zhCN'),vi:getVal('name_vi'),ja:getVal('name_ja')};
+      const features={en:getVal('feat_en'),'zh-TW':getVal('feat_zhTW'),'zh-CN':getVal('feat_zhCN'),vi:getVal('feat_vi'),ja:getVal('feat_ja')};
+      const existing=PRODUCTS.find(p=>p.series===series);
+      const prod={id:existing?.id||uid(),series,name,features,catId,catId2,defaultPrice:price,remark,img:existing?.img||null,createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()};
+      if(existing){PRODUCTS=PRODUCTS.map(p=>p.series===series?prod:p);updated++;}
+      else{PRODUCTS.push(prod);added++;}
+      await saveOneP(prod);
+    }
+    renderProductList(); updateVersionStamp();
+    toast('Import done: '+added+' added, '+updated+' updated, '+skipped+' skipped');
+  } catch(e) { console.error('importProductsXLSX:',e); toast('Import failed: '+e.message); }
+}
+
 
 function renderProductList(){
   document.getElementById('np-cnt-p').textContent=PRODUCTS.length;
