@@ -263,6 +263,7 @@ img{display:block}
       <div style="background:#C8102E;width:48px;height:48px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--fd);font-style:italic;font-size:22px;color:#fff;margin-bottom:10px">C</div>
       <div style="font-size:18px;font-weight:800;color:var(--tx)">COMART</div>
       <div style="font-size:11px;color:var(--tx3)">Quotation System</div>
+      <div id="loginVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;margin-top:4px">v2.07</div>
     </div>
     <div style="background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:24px">
       <div class="field" style="margin-bottom:12px">
@@ -315,7 +316,7 @@ img{display:block}
       <div style="display:flex;flex-direction:column;gap:0px">
         <div style="font-family:var(--fd);font-style:italic;font-size:15px;color:var(--tx);letter-spacing:-.02em;line-height:1.1">COMART</div>
         <div style="font-size:9px;color:var(--tx3);font-weight:500;letter-spacing:.02em;line-height:1">Innovative ODM reliable partner</div>
-        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.06</div>
+        <div id="appVersionDiv" style="font-size:10px;color:var(--ac);font-weight:600;letter-spacing:.04em;line-height:1.3">v2.07</div>
       </div>
     </div>
     <div class="back-row" id="backRow">
@@ -355,6 +356,7 @@ img{display:block}
     <button class="npill active" data-tab="quotes" onclick="switchTab('quotes')"><span id="np-quotes">Quotations</span> <span class="badge" id="np-cnt-q">0</span></button>
     <button class="npill" data-tab="products" onclick="switchTab('products')"><span id="np-products">Products</span> <span class="badge" id="np-cnt-p">0</span></button>
     <button class="npill" data-tab="categories" onclick="switchTab('categories')"><span id="np-categories">Categories</span> <span class="badge" id="np-cnt-c">0</span></button>
+    <button class="npill" id="usersTab" data-tab="users" onclick="switchTab('users')" style="display:none"><span id="np-users">Users</span></button>
   </div>
 </div>
 
@@ -479,6 +481,15 @@ img{display:block}
       <button class="btn btn-danger btn-sm" id="u-del-btn" style="display:none" onclick="deleteUser()">Delete</button>
     </div>
   </div>
+</div>
+
+<!-- ── PAGE: USERS ────────────────────────────────────── -->
+<div class="page" id="pageUsers">
+  <div style="padding:8px 12px 4px;display:flex;align-items:center;gap:8px">
+    <div style="font-size:13px;font-weight:700;color:var(--tx);flex:1">👥 User Management</div>
+    <button class="btn btn-outline btn-sm" onclick="openUserModal(null)">+ Add User</button>
+  </div>
+  <div class="card" id="userListContainer" style="margin:8px 12px"></div>
 </div>
 
 <!-- ── PAGE: QUOTE FORM ────────────────────────────────── -->
@@ -609,14 +620,7 @@ img{display:block}
   </div>
   <input type="file" id="xlsxImportFile" accept=".xlsx" style="display:none" onchange="importProductsXLSX(event)">
 
-  <!-- Users Management (Admin only) -->
-  <div id="usersMgmtSection" style="display:none;border-top:1px solid var(--br);padding-top:10px;margin-top:4px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-      <div style="font-size:12px;color:var(--tx3);font-weight:600;flex:1">👥 User Management</div>
-      <button class="btn btn-outline btn-sm" onclick="openUserModal(null)">+ Add User</button>
-    </div>
-    <div id="userListContainer"></div>
-  </div>
+
   <div class="btn-row"><button class="btn btn-primary" onclick="saveSettings()"><span id="sg-save">Save Settings</span></button><button class="btn btn-ghost" onclick="precacheAllImages()">🖼 Cache Images for PDF/XLSX</button></div>
 </div>
 
@@ -1220,17 +1224,19 @@ function switchTab(tab){
   document.getElementById('pageQuotes').classList.toggle('active',tab==='quotes');
   document.getElementById('pageProducts').classList.toggle('active',tab==='products');
   document.getElementById('pageCategories').classList.toggle('active',tab==='categories');
+  const puEl = document.getElementById('pageUsers'); if(puEl) puEl.classList.toggle('active',tab==='users');
   if(tab==='products') renderProductList();
   if(tab==='categories') renderCategoryList();
+  if(tab==='users') renderUsersPage();
   // Keep nav visible for all home tabs
   document.getElementById('logoArea').style.display='flex';
   document.getElementById('navPills').style.display='flex';
   document.getElementById('settingsBtn').style.display='flex';
 }
 function goPage(pg){
-  ['pageQuotes','pageProducts','pageCategories','pageForm','pageDetail','pageSettings'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('active'); });
+  ['pageQuotes','pageProducts','pageCategories','pageUsers','pageForm','pageDetail','pageSettings'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('active'); });
   document.getElementById('page'+pg.charAt(0).toUpperCase()+pg.slice(1)).classList.add('active');
-  const isHome=pg==='quotes'||pg==='products'||pg==='categories';
+  const isHome=pg==='quotes'||pg==='products'||pg==='categories'||pg==='users';
   document.getElementById('logoArea').style.display=isHome?'flex':'none';
   document.getElementById('navPills').style.display=isHome?'flex':'none';
   document.getElementById('backRow').classList.toggle('show',!isHome);
@@ -2620,12 +2626,6 @@ async function downloadPDF(id) {
 
   const ql = q.lang || 'en';
 
-  // Non-English: use HTML output (browser fonts support CJK/Vietnamese)
-  if (ql !== 'en') {
-    downloadPDFasHTML(q);
-    return;
-  }
-
   const btn = document.getElementById(`pdfBtn_${id}`);
   const orig = btn?.innerHTML;
   if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Generating PDF…'; }
@@ -3033,7 +3033,7 @@ async function doLogin() {
   if (user.mustChangePwd) {
     showChangePwd(true); // force change
   }
-  renderSettingsUsersSection();
+  renderUsersPage();
 }
 
 // ── Logout ──
@@ -3052,6 +3052,9 @@ function updateUserBadge() {
   const nm = document.getElementById('userBadgeName');
   if (el) el.style.display = 'flex';
   if (nm) nm.innerHTML = `<span style="font-weight:700;color:var(--tx)">${currentUser.nameEn||currentUser.empId}</span><br><span style="color:var(--tx3)">${currentUser.empId}</span>`;
+  // Show/hide Users tab based on role
+  const usersTab = document.getElementById('usersTab');
+  if (usersTab) usersTab.style.display = currentUser.role === 'admin' ? '' : 'none';
 }
 
 // ── Restore session ──
@@ -3067,7 +3070,7 @@ async function restoreSession() {
       if (!snap.empty) {
         currentUser = snap.docs[0].data();
         updateUserBadge();
-        renderSettingsUsersSection();
+        renderUsersPage();
         return true;
       }
     }
@@ -3144,11 +3147,8 @@ async function ensureAdminExists() {
 
 // ── User list in Settings ──
 let USERS = [];
-async function renderSettingsUsersSection() {
-  const sec = document.getElementById('usersMgmtSection');
-  if (!sec) return;
-  if (!currentUser || currentUser.role !== 'admin') { sec.style.display='none'; return; }
-  sec.style.display = 'block';
+async function renderUsersPage() {
+  if (!currentUser || currentUser.role !== 'admin') return;
   if (USE_FIREBASE) {
     try {
       const snap = await db.collection(COL_U).orderBy('empId','asc').get();
@@ -3157,7 +3157,7 @@ async function renderSettingsUsersSection() {
   }
   const container = document.getElementById('userListContainer');
   if (!container) return;
-  if (!USERS.length) { container.innerHTML = '<div style="color:var(--tx3);font-size:12px">No users yet</div>'; return; }
+  if (!USERS.length) { container.innerHTML = '<div style="color:var(--tx3);font-size:12px;padding:16px">No users yet. Click + Add User to create one.</div>'; return; }
   container.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
     <thead><tr style="border-bottom:2px solid var(--br)">
       <th style="padding:6px 8px;text-align:left;color:var(--tx3);font-weight:600;font-size:11px">EMP ID</th>
@@ -3241,7 +3241,7 @@ async function saveUser() {
     catch(e) { toast('Save failed: ' + e.message); return; }
   }
   closeUserModal();
-  await renderSettingsUsersSection();
+  await renderUsersPage();
   toast(existing ? 'User updated' : 'User created — initial password set');
 }
 async function deleteUser() {
@@ -3252,7 +3252,7 @@ async function deleteUser() {
       try { await db.collection(COL_U).doc(editUserId).delete(); } catch(e) { return; }
     }
     closeUserModal();
-    await renderSettingsUsersSection();
+    await renderUsersPage();
     toast('User deleted');
   });
 }
