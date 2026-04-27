@@ -3241,6 +3241,7 @@ async function downloadPDF(id) {
       const pid = q.products[pi];
       const p   = prodById(pid);
       if (!p) continue;
+      const isFeaturedPDF = q.featured?.[pid] === true;
 
       const featText = getFullFeatures(p, ql);
       doc.setFontSize(7.5);
@@ -3249,7 +3250,15 @@ async function downloadPDF(id) {
       const codeLines = doc.splitTextToSize(p.series, colW.code - 2);
       doc.setFontSize(7.5); // restore
       const remText = p.remark || '';
-      const remLines  = doc.splitTextToSize(remText, colW.remark - 2);
+      // featured: "**" line + blank line + remark content (all ASCII, safe for Helvetica)
+      let remLines;
+      if (isFeaturedPDF) {
+        const starLines = ['**', ''];
+        const contentLines = remText ? doc.splitTextToSize(remText, colW.remark - 2) : [];
+        remLines = [...starLines, ...contentLines];
+      } else {
+        remLines = doc.splitTextToSize(remText, colW.remark - 2);
+      }
       const rowH = Math.max(28, Math.max(featLines.length, remLines.length) * 4 + 8);
 
       // Check page break
@@ -3339,9 +3348,16 @@ async function downloadPDF(id) {
         cx += priceW;
       });
 
-      // Remark
+      // Remark — featured: red bold ** on first line, blank, then remark
       doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-      doc.text(remLines, cx + 1, y + 4);
+      if (isFeaturedPDF && remLines.length > 0) {
+        doc.setTextColor(200,16,46); doc.setFont('helvetica','bold');
+        doc.text(remLines[0], cx + 1, y + 4); // "**" in red bold
+        doc.setFont('helvetica','normal'); doc.setTextColor(40,40,40);
+        if (remLines.length > 1) doc.text(remLines.slice(1), cx + 1, y + 4 + 3.5);
+      } else {
+        doc.text(remLines, cx + 1, y + 4);
+      }
 
       // Borders — outer rect + all internal dividers including Price|Remark
       doc.setDrawColor(180,180,180);
