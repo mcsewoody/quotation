@@ -57,9 +57,9 @@ img{display:block}
 .npill .badge{background:rgba(255,255,255,0.22);border-radius:10px;padding:0 5px;margin-left:4px;font-size:10px}
 
 /* ── PAGES ──────────────── */
-.page{display:none;padding:14px 16px;max-width:840px;margin:0 auto;padding-bottom:80px}
-.page.active{display:block;animation:pi .18s ease}
-#pageFiles.active,#pageAI.active{display:flex;flex-direction:column;padding:0;padding-bottom:0}
+.page{display:none !important;padding:14px 16px;max-width:840px;margin:0 auto;padding-bottom:80px}
+.page.active{display:block !important;animation:pi .18s ease}
+#pageFiles.active,#pageAI.active{display:flex !important;flex-direction:column;padding:0;padding-bottom:0}
 
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes pi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
@@ -489,31 +489,7 @@ img{display:block}
 </div>
 
 <!-- ── PAGE: USERS ────────────────────────────────────── -->
-<div class="page" id="pageUsers">
-  <div style="padding:8px 12px 4px;display:flex;align-items:center;gap:8px">
-    <div style="font-size:13px;font-weight:700;color:var(--tx);flex:1">👥 Users</div>
-    <button class="btn btn-primary btn-sm" onclick="openUserModal(null)">+ Add User</button>
-  </div>
-  <div class="card" id="userListContainer" style="margin:8px 12px"></div>
-
-  <!-- Activity Log section (admin only) -->
-  <div style="padding:8px 12px 4px;display:flex;align-items:center;gap:8px;margin-top:8px">
-    <div style="font-size:13px;font-weight:700;color:var(--tx);flex:1">📋 Activity Log</div>
-    <select id="logFilterType" onchange="renderLogTable()" style="padding:5px 8px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
-      <option value="">All Types</option>
-      <option value="quote">Quotations</option>
-      <option value="product">Products</option>
-      <option value="category">Categories</option>
-      <option value="user">Users</option>
-      <option value="settings">Settings</option>
-    </select>
-    <select id="logFilterUser" onchange="renderLogTable()" style="padding:5px 8px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
-      <option value="">All Users</option>
-    </select>
-    <button class="btn btn-ghost btn-sm" onclick="renderLogTable()">↻ Refresh</button>
-  </div>
-  <div class="card" id="logTableContainer" style="margin:0 12px 12px;overflow-x:auto"></div>
-</div>
+<div class="page" id="pageUsers" style="display:none!important"></div>
 
 <!-- ── PAGE: QUOTE FORM ────────────────────────────────── -->
 <div class="page" id="pageForm">
@@ -641,7 +617,7 @@ img{display:block}
     <button class="moq-chip" id="stab-cats" onclick="showSettingsTab('cats')">Categories</button>
     <button class="moq-chip" id="stab-data" onclick="showSettingsTab('data')">Maintain</button>
     <button class="moq-chip" id="stab-sup" onclick="showSettingsTab('sup')">Suppliers</button>
-    <button class="moq-chip" id="stab-users-s" onclick="switchTab('users')" style="display:none" title="User Management">Users</button>
+    <button class="moq-chip" id="stab-users-s" onclick="showSettingsTab('users')" style="display:none" title="User Management">Users</button>
   </div>
 
   <!-- Section: Default Terms -->
@@ -692,6 +668,33 @@ img{display:block}
       <button class="btn btn-sm" onclick="openSupplierModal(null)" style="font-size:12px;padding:6px 14px">+ Add Supplier</button>
     </div>
     <div id="supplierList"></div>
+  </div>
+  <div id="stab-content-users" style="display:none">
+
+  <div style="padding:8px 12px 4px;display:flex;align-items:center;gap:8px">
+    <div style="font-size:13px;font-weight:700;color:var(--tx);flex:1">👥 Users</div>
+    <button class="btn btn-primary btn-sm" onclick="openUserModal(null)">+ Add User</button>
+  </div>
+  <div class="card" id="userListContainer" style="margin:8px 12px"></div>
+
+  <!-- Activity Log section (admin only) -->
+  <div style="padding:8px 12px 4px;display:flex;align-items:center;gap:8px;margin-top:8px">
+    <div style="font-size:13px;font-weight:700;color:var(--tx);flex:1">📋 Activity Log</div>
+    <select id="logFilterType" onchange="renderLogTable()" style="padding:5px 8px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
+      <option value="">All Types</option>
+      <option value="quote">Quotations</option>
+      <option value="product">Products</option>
+      <option value="category">Categories</option>
+      <option value="user">Users</option>
+      <option value="settings">Settings</option>
+    </select>
+    <select id="logFilterUser" onchange="renderLogTable()" style="padding:5px 8px;border-radius:7px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
+      <option value="">All Users</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="renderLogTable()">↻ Refresh</button>
+  </div>
+  <div class="card" id="logTableContainer" style="margin:0 12px 12px;overflow-x:auto"></div>
+
   </div>
   <div id="stab-content-data" style="display:none">
   <div class="sec-title" id="sg-data-title">Data Maintain</div>
@@ -2519,9 +2522,9 @@ function renderMoqChips(){
 }
 
 // ── Tiered Markup Modal ──────────────────────────
-const TIER_MOQS = [500, 3000, 5000, 10000];
-const TIER_DEFAULTS = {500:5, 3000:-2, 5000:-3, 10000:-4};
-let tieredPcts = {500:5, 3000:-2, 5000:-3, 10000:-4};  // global defaults
+const TIER_MOQS = [1, 500, 3000, 5000, 10000, 20000];
+const TIER_DEFAULTS = {1:100, 500:5, 3000:-2, 5000:-4, 10000:-6, 20000:-8};
+let tieredPcts = {1:100, 500:5, 3000:-2, 5000:-4, 10000:-6, 20000:-8};  // global defaults
 let prodTieredPcts = {};  // per-product overrides: {prodId: {moq: pct}}
 
 function showTieredMarkup(){
@@ -4337,7 +4340,7 @@ async function syncLiveRates(){
   }
 }
 function showSettingsTab(tab){
-  ['terms','rates','cats','data','sup'].forEach(t=>{
+  ['terms','rates','cats','data','sup','users'].forEach(t=>{
     const c=document.getElementById('stab-content-'+t);
     const b=document.getElementById('stab-'+t);
     if(c) c.style.display=t===tab?'block':'none';
@@ -4345,6 +4348,7 @@ function showSettingsTab(tab){
   });
   if(tab==='cats') renderSettingsCatList();
   if(tab==='sup') renderSupplierList();
+  if(tab==='users'){ renderUsersPage(); renderLogTable(); }
 }
 function renderSettingsCatList(){
   const el=document.getElementById('settingsCatList');
@@ -4554,13 +4558,20 @@ function _driveShareUrl(f){
 }
 
 async function _driveFetch(folderId){
-  // Uses Google Drive API (no key required for publicly shared folders)
-  const q   = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
-  const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType,modifiedTime,size)&orderBy=folder,name&pageSize=200`;
-  const res = await fetch(url);
-  if(!res.ok) throw new Error('Drive API ' + res.status);
-  const d = await res.json();
-  return d.files || [];
+  // Try Drive API v3 (works if folder is public + shared)
+  try {
+    const q   = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType,modifiedTime,size)&orderBy=folder,name&pageSize=200`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('Drive API ' + res.status);
+    const d = await res.json();
+    if(d.files && d.files.length >= 0) return d.files;
+    throw new Error('no files field');
+  } catch(e) {
+    // Fallback: return null to trigger iframe mode
+    console.warn('Drive API:', e.message, '→ using iframe fallback');
+    return null;
+  }
 }
 
 async function driveLoadFolder(folderId){
@@ -4571,22 +4582,34 @@ async function driveLoadFolder(folderId){
   listEl.style.display='none';
   if(loadEl) loadEl.style.display='block';
   if(empEl)  empEl.style.display='none';
-  try {
-    _driveAllFiles = await _driveFetch(folderId);
+  const files = await _driveFetch(folderId);
+  if(files !== null){
+    _driveAllFiles = files;
     _driveRenderList(_driveAllFiles);
-  } catch(e){
-    console.warn('Drive API failed:', e.message);
-    // Fallback: render embedded iframe for the folder
+  } else {
+    // Iframe fallback — stays fully inside the app
     if(loadEl) loadEl.style.display='none';
+    const listEl2 = document.getElementById('driveFileList');
+    const empEl2  = document.getElementById('driveEmpty');
+    if(listEl2) listEl2.style.display='none';
+    if(empEl2)  empEl2.style.display='none';
+    const cur = _driveStack[_driveStack.length-1];
+    // Show embedded folder iframe in the list panel area
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'flex:1;display:flex;flex-direction:column;min-height:0';
+    wrap.innerHTML = `
+      <div style="padding:8px 14px;font-size:11px;color:var(--tx3);border-bottom:1px solid var(--br);flex-shrink:0">
+        📌 Browsing via Google Drive embed. To enable full file browser, set folder to "Anyone with the link → Viewer".
+      </div>
+      <iframe src="https://drive.google.com/embeddedfolderview?id=${cur.id}#list"
+        style="flex:1;border:none;width:100%;min-height:calc(100vh - 180px)"></iframe>`;
     const panel = document.getElementById('driveListPanel');
     if(panel){
-      const cur = _driveStack[_driveStack.length-1];
-      panel.innerHTML = `
-        <div style="padding:10px 14px;font-size:11px;color:var(--tx3);border-bottom:1px solid var(--br);flex-shrink:0">
-          Tip: Set folder sharing to "Anyone with the link" to enable full file browser.
-        </div>
-        <iframe src="https://drive.google.com/embeddedfolderview?id=${cur.id}#list"
-          style="flex:1;border:none;width:100%;min-height:calc(100vh - 160px)"></iframe>`;
+      // Keep toolbar, replace content area
+      const existingIframe = panel.querySelector('iframe');
+      if(existingIframe) existingIframe.closest('div').remove();
+      const searchBar = panel.querySelector('#driveSearch')?.closest('div');
+      if(searchBar) searchBar.after(wrap); else panel.appendChild(wrap);
     }
   }
 }
@@ -4755,7 +4778,7 @@ init();
 </script>
 
 <!-- ── PAGE: FILES ────────────────────────────────── -->
-<div class="page" id="pageFiles" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 56px);max-width:100%;margin:0">
+<div class="page" id="pageFiles" style="padding:0;flex-direction:column;height:calc(100vh - 56px);max-width:100%;margin:0">
 
   <!-- Toolbar -->
   <div style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-bottom:1px solid var(--br);flex-shrink:0;background:var(--s1)">
