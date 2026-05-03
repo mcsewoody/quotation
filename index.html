@@ -359,6 +359,7 @@ img{display:block}
   <div class="nav-pills" id="navPills">
     <button class="npill active" data-tab="ai" onclick="switchTab('ai')">🤖 <span id="np-ai">AI</span></button>
     <button class="npill" data-tab="files" onclick="switchTab('files')">📁 <span id="np-files">Files</span></button>
+    <button class="npill" data-tab="crm" onclick="switchTab('crm')">👥 <span id="np-crm">CRM</span> <span class="badge" id="np-cnt-crm">0</span></button>
     <button class="npill" data-tab="products" onclick="switchTab('products')"><span id="np-products">Products</span> <span class="badge" id="np-cnt-p">0</span></button>
     <button class="npill" data-tab="quotes" onclick="switchTab('quotes')"><span id="np-quotes">Quotations</span> <span class="badge" id="np-cnt-q">0</span></button>
   </div>
@@ -888,7 +889,7 @@ const LANGS = ['en','zh-TW','zh-CN','vi','ja'];
 const LANG_LABELS = {en:'EN','zh-TW':'繁','zh-CN':'簡',vi:'VI',ja:'日'};
 const UI = {
   en:{
-    ai:'AI',files:'Files',translate:'Translate',skills:'Skill',chat:'Chat',tools:'Link',back:'Back',quotes:'Quotations',products:'Products',newQ:'New Quotation',editQ:'Edit Quotation',
+    ai:'AI',files:'Files',crm:'CRM',translate:'Translate',skills:'Skill',chat:'Chat',tools:'Link',back:'Back',quotes:'Quotations',products:'Products',newQ:'New Quotation',editQ:'Edit Quotation',
     all:'All',draft:'Draft',sent:'Sent',
     client:'Client',moqTiers:'Price Tiers',selectProds:'Products',prices:'Unit Prices',
     company:'Company *',attn:'Contact',email:'Email',tel:'Tel',
@@ -908,7 +909,7 @@ const UI = {
     disp:'Display',defNote:'Default Note',categories:'Categories',
   },
   'zh-TW':{
-    ai:'AI',files:'檔案',translate:'翻譯',skills:'技能',chat:'對話',tools:'連結',back:'返回',quotes:'報價管理',products:'產品庫',newQ:'新建報價',editQ:'編輯報價',
+    ai:'AI',files:'檔案',crm:'CRM',translate:'翻譯',skills:'技能',chat:'對話',tools:'連結',back:'返回',quotes:'報價管理',products:'產品庫',newQ:'新建報價',editQ:'編輯報價',
     all:'全部',draft:'草稿',sent:'已發送',
     client:'客戶',moqTiers:'價格區間',selectProds:'選擇產品',prices:'單位售價（USD）',
     company:'公司名稱 *',attn:'聯絡人',email:'Email',tel:'電話',
@@ -928,7 +929,7 @@ const UI = {
     disp:'顯示設定',defNote:'預設備注',categories:'類別',
   },
   'zh-CN':{
-    ai:'AI',files:'文件',translate:'翻译',skills:'技能',chat:'对话',tools:'链接',back:'返回',quotes:'报价管理',products:'产品库',newQ:'新建报价',editQ:'编辑报价',
+    ai:'AI',files:'文件',crm:'CRM',translate:'翻译',skills:'技能',chat:'对话',tools:'链接',back:'返回',quotes:'报价管理',products:'产品库',newQ:'新建报价',editQ:'编辑报价',
     all:'全部',draft:'草稿',sent:'已发送',
     client:'客户',moqTiers:'价格区间',selectProds:'选择产品',prices:'单位售价（USD）',
     company:'公司名称 *',attn:'联系人',email:'Email',tel:'电话',
@@ -948,7 +949,7 @@ const UI = {
     disp:'显示设置',defNote:'默认备注',categories:'类别',
   },
   vi:{
-    ai:'AI',files:'Tệp',translate:'Dịch',skills:'Kỹ năng',chat:'Trò chuyện',tools:'Liên kết',back:'Quay lại',quotes:'Báo Giá',products:'Sản Phẩm',newQ:'Tạo Báo Giá',editQ:'Sửa Báo Giá',
+    ai:'AI',files:'Tệp',crm:'CRM',translate:'Dịch',skills:'Kỹ năng',chat:'Trò chuyện',tools:'Liên kết',back:'Quay lại',quotes:'Báo Giá',products:'Sản Phẩm',newQ:'Tạo Báo Giá',editQ:'Sửa Báo Giá',
     all:'Tất cả',draft:'Bản nháp',sent:'Đã gửi',
     client:'Khách hàng',moqTiers:'Mức Giá',selectProds:'Chọn Sản phẩm',prices:'Đơn giá (USD)',
     company:'Tên Công ty *',attn:'Người LH',email:'Email',tel:'Điện thoại',
@@ -968,7 +969,7 @@ const UI = {
     disp:'Hiển thị',defNote:'Ghi chú mặc định',categories:'Danh mục',
   },
   ja:{
-    ai:'AI',files:'ファイル',translate:'翻訳',skills:'スキル',chat:'チャット',tools:'リンク',back:'戻る',quotes:'見積管理',products:'製品一覧',newQ:'新規見積',editQ:'見積編集',
+    ai:'AI',files:'ファイル',crm:'CRM',translate:'翻訳',skills:'スキル',chat:'チャット',tools:'リンク',back:'戻る',quotes:'見積管理',products:'製品一覧',newQ:'新規見積',editQ:'見積編集',
     all:'すべて',draft:'下書き',sent:'送付済',
     client:'顧客情報',moqTiers:'価格帯',selectProds:'製品選択',prices:'単価（USD）',
     company:'会社名 *',attn:'担当者',email:'Email',tel:'電話',
@@ -1053,6 +1054,49 @@ const COL_SUP = 'suppliers';
 const COL_C = 'categories';
 const COL_U = 'users';
 const COL_L = 'logs';
+const COL_CA = 'crm_accounts';
+const COL_CC = 'crm_contacts';
+const COL_CV = 'crm_activities';
+const COL_CT = 'crm_tasks';
+
+// CRM in-memory caches
+let CRM_ACCOUNTS = [];
+let CRM_CONTACTS = [];
+let CRM_ACTIVITIES = [];
+let CRM_TASKS = [];
+
+// CRM constants
+const CRM_STAGES = [
+  { id:'lead',     label:'詢價',  color:'#94a3b8' },
+  { id:'quoted',   label:'報價',  color:'#3b82f6' },
+  { id:'sample',   label:'樣品',  color:'#8b5cf6' },
+  { id:'nego',     label:'議價',  color:'#f59e0b' },
+  { id:'won',      label:'成交',  color:'#10b981' },
+  { id:'lost',     label:'流失',  color:'#ef4444' },
+];
+const CRM_STATUSES = [
+  { id:'lead',     label:'潛在客戶' },
+  { id:'active',   label:'進行中' },
+  { id:'customer', label:'已成交' },
+  { id:'lost',     label:'已流失' },
+  { id:'dormant',  label:'暫停' },
+];
+const CRM_FACTORIES = [
+  { id:'either',  label:'兩者皆可' },
+  { id:'china',   label:'中國廠' },
+  { id:'vietnam', label:'越南廠' },
+];
+const CRM_ACT_TYPES = [
+  { id:'meeting',  label:'會議',     icon:'🤝' },
+  { id:'show',     label:'展會見面', icon:'🎪' },
+  { id:'quote',    label:'報價',     icon:'📋' },
+  { id:'sample',   label:'樣品寄送', icon:'📦' },
+  { id:'contract', label:'合約簽訂', icon:'📝' },
+  { id:'order',    label:'下單',     icon:'✅' },
+  { id:'email',    label:'重要 Email',icon:'📧' },
+  { id:'call',     label:'重要通話', icon:'📞' },
+  { id:'note',     label:'其他備註', icon:'📌' },
+];
 
 let currentUser = null; // { empId, nameEn, nameZh, ext, mobile, email, login, role, mustChangePwd }
 
@@ -1115,6 +1159,9 @@ function startListeners() {
       if(cntEl) cntEl.textContent = CATEGORIES.length;
       if(page === 'categories') renderCategoryList();
     }, err => console.warn('C listener:', err));
+
+  // CRM listeners — accounts/contacts/activities/tasks
+  if(typeof subscribeCRM === 'function') subscribeCRM();
 }
 
 // ── Load all data ──────────────────────
@@ -1410,7 +1457,7 @@ function setLang(l){
 function applyLang(){
   const s=(id,k)=>{const el=document.getElementById(id);if(el)el.textContent=t(k);};
   s('np-quotes','quotes');s('np-products','products');s('np-categories','categories');
-  s('np-ai','ai');s('np-files','files');
+  s('np-ai','ai');s('np-files','files');s('np-crm','crm');
   s('aitab-lbl-translate','translate');s('aitab-lbl-skills','skills');s('aitab-lbl-chat','chat');s('aitab-lbl-tools','tools');
   s('backLbl','back');
   s('fs-client','client');s('fs-moq','moqTiers');s('fs-prods','selectProds');s('fs-prices','prices');
@@ -1485,6 +1532,10 @@ function readCardForCompany(input) {
     if (el && info.company) el.value = info.company;
     const vb = document.getElementById('vcard-export-btn');
     if (vb) vb.style.display = 'inline-flex';
+    // Prompt: add to CRM
+    if (typeof promptAddCardToCRM === 'function') {
+      setTimeout(()=>promptAddCardToCRM(info, '客戶調查 / 名片掃描'), 300);
+    }
   });
 }
 
@@ -1501,6 +1552,11 @@ function readCardForFollowup(input) {
     // Show vCard export button for followup
     const vb = document.getElementById('vcard-export-btn-followup');
     if (vb) vb.style.display = 'inline-block';
+    // Prompt: add to CRM (use show name as source if available)
+    if (typeof promptAddCardToCRM === 'function') {
+      const showName = document.getElementById('skill-show-name')?.value.trim() || '展後跟進';
+      setTimeout(()=>promptAddCardToCRM(info, showName), 300);
+    }
   });
 }
 
@@ -1536,11 +1592,13 @@ function switchTab(tab){
   const puEl = document.getElementById('pageUsers'); if(puEl) puEl.classList.toggle('active',tab==='users');
   const pfEl = document.getElementById('pageFiles'); if(pfEl) pfEl.classList.toggle('active',tab==='files');
   const paEl = document.getElementById('pageAI'); if(paEl) paEl.classList.toggle('active',tab==='ai');
+  const pcEl = document.getElementById('pageCRM'); if(pcEl) pcEl.classList.toggle('active',tab==='crm');
   if(tab==='products') renderProductList();
   if(tab==='categories') renderCategoryList();
   if(tab==='users'){ renderUsersPage(); renderLogTable(); }
   if(tab==='files'){ loadAndRenderFiles(); }
   if(tab==='ai'){ showAITab('translate'); setTimeout(()=>{ const i=document.getElementById('xlat-input'); if(i) i.focus(); },150); }
+  if(tab==='crm'){ showCRMTab('accounts'); }
   // Keep nav visible for all home tabs
   document.getElementById('logoArea').style.display='flex';
   document.getElementById('navPills').style.display='flex';
@@ -1548,7 +1606,7 @@ function switchTab(tab){
 }
 function goPage(pg){
   if(pg==='settings' && currentUser?.role==='user'){toast('No permission');return;}
-  ['pageQuotes','pageProducts','pageCategories','pageUsers','pageForm','pageDetail','pageSettings','pageFiles','pageAI'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('active'); });
+  ['pageQuotes','pageProducts','pageCategories','pageUsers','pageForm','pageDetail','pageSettings','pageFiles','pageAI','pageCRM'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.remove('active'); });
   document.getElementById('page'+pg.charAt(0).toUpperCase()+pg.slice(1)).classList.add('active');
   const isHome=pg==='quotes'||pg==='products'||pg==='users';
   document.getElementById('logoArea').style.display=isHome?'flex':'none';
@@ -2891,6 +2949,8 @@ async function saveQuote(){
   }
   // Pass object directly to avoid stale-array reads
   await saveOneQ(q);
+  // Auto-sync to CRM (full automatic per user choice)
+  syncQuoteToCRM(q).catch(e=>console.warn('CRM sync:',e));
   toast(t('save'));
   renderQuoteList();
   updateVersionStamp();
@@ -5182,6 +5242,35 @@ RULES: Only use facts from search. Write 未找到 for unknown. Never invent. Ho
       n.style.cssText='margin-top:8px;padding:7px 11px;border-radius:8px;font-size:11px;background:rgba(16,163,127,.08);border:1px solid rgba(16,163,127,.2);color:#10a37f';
       n.textContent = searchCtx.includes('no live search') ? '⚠ 未取得即時搜尋' : '✅ Tavily 即時搜尋';
       if(outEl) outEl.appendChild(n);
+      // Prompt: save research to CRM
+      if (typeof askAddToCRM === 'function' && reply) {
+        const existing = findAccountByName(name);
+        const msg = existing
+          ? `將這份調查報告存入 CRM 客戶 <b>${escHtml(name)}</b> 的互動歷史？`
+          : `將 <b>${escHtml(name)}</b> 加入 CRM 並儲存這份調查報告？`;
+        setTimeout(()=>askAddToCRM(msg, async ()=>{
+          let acct = existing;
+          if(!acct){
+            try {
+              const newAcct = { company:name, country:'', status:'lead', source:'公司調查', factory:'either', owner:currentUser?.empId||'', createdAt:Date.now(), updatedAt:Date.now(), createdBy:currentUser?.empId||null };
+              const r = await db.collection(COL_CA).add(newAcct);
+              await db.collection(COL_CA).doc(r.id).set({id:r.id},{merge:true});
+              acct = {...newAcct, id:r.id};
+            } catch(e){ toast('建立客戶失敗: '+e.message); return; }
+          }
+          // Save research report as activity
+          try {
+            await db.collection(COL_CV).add({
+              accountId: acct.id, type:'note',
+              title:'公司調查報告',
+              date: new Date().toISOString().slice(0,10),
+              detail: reply.slice(0, 8000),
+              createdAt:Date.now(), createdBy:currentUser?.empId||null
+            });
+            toast('✅ 已存入 CRM');
+          } catch(e){ toast('儲存失敗: '+e.message); }
+        }), 500);
+      }
     } catch(e) {
       if(loadEl) loadEl.style.display='none';
       if(contentEl){ contentEl.textContent='Error: '+e.message; contentEl.style.display='block'; }
@@ -5300,6 +5389,48 @@ CRITICAL RULES:
       n.style.cssText='margin-top:8px;padding:7px 11px;border-radius:8px;font-size:11px;background:rgba(16,163,127,.08);border:1px solid rgba(16,163,127,.2);color:#10a37f';
       n.textContent = searchCtx.includes('no live search') ? '⚠ 未取得即時搜尋' : '✅ 使用 Tavily 即時搜尋客戶資料';
       if(outEl) outEl.appendChild(n);
+      // Auto-record: post-show followup → CRM activity
+      if (typeof addCardInfoToCRM === 'function' && reply) {
+        const existing = findAccountByName(company);
+        const cardInfo = { company, name:contact||'', email:'', phone:'' };
+        const msg = existing
+          ? `將「展後跟進信」記錄到 CRM 客戶 <b>${escHtml(company)}</b> 的互動歷史？`
+          : `將 <b>${escHtml(company)}</b> 加入 CRM 並記錄展後跟進？`;
+        setTimeout(()=>askAddToCRM(msg, async ()=>{
+          let acct = existing;
+          if(!acct){
+            try {
+              const newAcct = { company, country:'', status:'lead', source:showName, factory:'either', owner:currentUser?.empId||'', createdAt:Date.now(), updatedAt:Date.now(), createdBy:currentUser?.empId||null };
+              const r = await db.collection(COL_CA).add(newAcct);
+              await db.collection(COL_CA).doc(r.id).set({id:r.id},{merge:true});
+              acct = {...newAcct, id:r.id};
+            } catch(e){ toast('建立失敗: '+e.message); return; }
+          }
+          // Add contact if any
+          if(contact){
+            const has = CRM_CONTACTS.find(c=>c.accountId===acct.id && c.name===contact);
+            if(!has){
+              try {
+                const c = { accountId:acct.id, name:contact, createdAt:Date.now(), updatedAt:Date.now() };
+                const r = await db.collection(COL_CC).add(c);
+                await db.collection(COL_CC).doc(r.id).set({id:r.id},{merge:true});
+              } catch(e){ console.warn(e); }
+            }
+          }
+          // Activity: show meeting + email sent
+          try {
+            await db.collection(COL_CV).add({
+              accountId: acct.id, type:'show',
+              title: `展會見面: ${showName}`,
+              date: new Date().toISOString().slice(0,10),
+              detail: `Notes: ${notes||'(無)'}\n\n--- Email Sent ---\n${reply.slice(0,4000)}`,
+              followup:'寄出跟進信，等待回覆',
+              createdAt:Date.now(), createdBy:currentUser?.empId||null
+            });
+            toast('✅ 已記錄到 CRM');
+          } catch(e){ toast('儲存失敗: '+e.message); }
+        }), 500);
+      }
     } catch(e) {
       if(loadEl) loadEl.style.display='none';
       if(contentEl){ contentEl.textContent='Error: '+e.message; contentEl.style.display='block'; }
@@ -5312,6 +5443,766 @@ function copySkillOutput() {
   const el = document.getElementById('skillOutputContent');
   if(!el) return;
   navigator.clipboard.writeText(el.textContent).then(()=>toast('📋 Copied!')).catch(()=>{});
+}
+
+// ════════════════════════════════════════════════
+// CRM MODULE
+// ════════════════════════════════════════════════
+
+let _editAcctId   = null;  // currently-editing account
+let _editContactId= null;
+let _editActivityId=null;
+let _editTaskId   = null;
+let _crmTab       = 'accounts';
+
+// ── Firestore subscription ───────────────────
+let _crmAUnsub=null,_crmCUnsub=null,_crmVUnsub=null,_crmTUnsub=null;
+function subscribeCRM(){
+  if(!USE_FIREBASE || !db) return;
+  if(_crmAUnsub) _crmAUnsub();
+  if(_crmCUnsub) _crmCUnsub();
+  if(_crmVUnsub) _crmVUnsub();
+  if(_crmTUnsub) _crmTUnsub();
+  _crmAUnsub = db.collection(COL_CA).onSnapshot(s=>{
+    CRM_ACCOUNTS = s.docs.map(d=>({...d.data(),id:d.id}));
+    if(page==='crm' && _crmTab==='accounts') renderCRMAccounts();
+    updateCRMBadge();
+  });
+  _crmCUnsub = db.collection(COL_CC).onSnapshot(s=>{
+    CRM_CONTACTS = s.docs.map(d=>({...d.data(),id:d.id}));
+    if(_editAcctId) renderAcctContacts();
+  });
+  _crmVUnsub = db.collection(COL_CV).onSnapshot(s=>{
+    CRM_ACTIVITIES = s.docs.map(d=>({...d.data(),id:d.id}));
+    if(_editAcctId) renderAcctActivities();
+    if(page==='crm' && _crmTab==='activities') renderCRMActivities();
+  });
+  _crmTUnsub = db.collection(COL_CT).onSnapshot(s=>{
+    CRM_TASKS = s.docs.map(d=>({...d.data(),id:d.id}));
+    if(_editAcctId) renderAcctTasks();
+    if(page==='crm' && _crmTab==='tasks') renderCRMTasks();
+  });
+}
+
+function updateCRMBadge(){
+  const el = document.getElementById('np-cnt-crm');
+  if(el) el.textContent = CRM_ACCOUNTS.length;
+}
+
+// ── Permission check ─────────────────────────
+function canEditCRM(acct){
+  if(!currentUser) return false;
+  if(currentUser.role==='admin' || currentUser.role==='dcc') return true;
+  return acct && acct.owner === currentUser.empId;
+}
+function canViewCRM(acct){
+  if(!currentUser) return false;
+  if(currentUser.role==='admin' || currentUser.role==='dcc') return true;
+  return acct && acct.owner === currentUser.empId;
+}
+
+// ── CRM Tab switcher ─────────────────────────
+function showCRMTab(t){
+  _crmTab = t;
+  ['accounts','pipeline','tasks','activities'].forEach(x=>{
+    const btn=document.getElementById('crmtab-'+x);
+    if(btn) btn.classList.toggle('on', x===t);
+    const c=document.getElementById('crmtab-content-'+x);
+    if(c) c.style.display = (x===t) ? 'block' : 'none';
+  });
+  if(t==='accounts') renderCRMAccounts();
+  if(t==='pipeline') renderCRMPipeline();
+  if(t==='tasks') renderCRMTasks();
+  if(t==='activities') renderCRMActivities();
+}
+
+// ── ACCOUNT LIST ─────────────────────────────
+function renderCRMAccounts(){
+  const list = document.getElementById('crmAccountsList');
+  if(!list) return;
+  const q = (document.getElementById('crm-search')?.value||'').toLowerCase().trim();
+  const fStatus = document.getElementById('crm-filter-status')?.value || '';
+  const fFactory= document.getElementById('crm-filter-factory')?.value || '';
+
+  let accts = CRM_ACCOUNTS.filter(a => canViewCRM(a));
+  if(q){
+    accts = accts.filter(a =>
+      (a.company||'').toLowerCase().includes(q) ||
+      (a.country||'').toLowerCase().includes(q) ||
+      CRM_CONTACTS.some(c=>c.accountId===a.id && (c.name||'').toLowerCase().includes(q))
+    );
+  }
+  if(fStatus)  accts = accts.filter(a => a.status===fStatus);
+  if(fFactory) accts = accts.filter(a => a.factory===fFactory);
+  accts.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+
+  if(!accts.length){
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--tx3);font-size:13px">尚無客戶資料。點右上角「+ 新增客戶」開始。</div>';
+    return;
+  }
+
+  list.innerHTML = accts.map(a=>{
+    const stat = CRM_STATUSES.find(s=>s.id===a.status) || {label:'-'};
+    const fac  = CRM_FACTORIES.find(f=>f.id===a.factory) || {label:'-'};
+    const cnt  = CRM_CONTACTS.filter(c=>c.accountId===a.id).length;
+    const qcnt = QUOTES.filter(q=>q.accountId===a.id || (q.company||'').toLowerCase()===(a.company||'').toLowerCase()).length;
+    const lastAct = CRM_ACTIVITIES.filter(v=>v.accountId===a.id).sort((x,y)=>(y.date||'').localeCompare(x.date||''))[0];
+    return `<div onclick="openAccountModal('${a.id}')"
+      style="padding:12px 14px;border:1px solid var(--br);border-radius:10px;margin-bottom:8px;background:var(--s1);cursor:pointer;transition:all .15s"
+      onmouseover="this.style.borderColor='#10a37f'" onmouseout="this.style.borderColor='var(--br)'">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <div style="font-size:14px;font-weight:700;color:var(--tx);flex:1">${escHtml(a.company||'(無名)')}</div>
+        <div style="font-size:10px;padding:2px 8px;border-radius:5px;background:var(--s2);color:var(--tx2)">${stat.label}</div>
+      </div>
+      <div style="display:flex;gap:14px;font-size:11px;color:var(--tx3);flex-wrap:wrap">
+        ${a.country?`<span>🌍 ${escHtml(a.country)}</span>`:''}
+        ${a.industry?`<span>🏷 ${escHtml(a.industry)}</span>`:''}
+        <span>👤 ${cnt} 聯絡人</span>
+        <span>💰 ${qcnt} 報價</span>
+        <span>🏭 ${fac.label}</span>
+        ${lastAct?`<span>📋 上次互動: ${lastAct.date}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── ACCOUNT MODAL ────────────────────────────
+function openAccountModal(id){
+  _editAcctId = id || null;
+  const ov = document.getElementById('acctOverlay');
+  const titleEl = document.getElementById('acct-title');
+  const delBtn = document.getElementById('acct-del-btn');
+
+  // Reset all fields
+  ['acct-company','acct-country','acct-industry','acct-source','acct-website','acct-owner','acct-notes'].forEach(k=>{
+    const el=document.getElementById(k); if(el) el.value='';
+  });
+  document.getElementById('acct-type').value='';
+  document.getElementById('acct-status').value='lead';
+  document.getElementById('acct-factory').value='either';
+
+  if(id){
+    const a = CRM_ACCOUNTS.find(x=>x.id===id);
+    if(a){
+      titleEl.textContent = a.company || '客戶詳情';
+      document.getElementById('acct-company').value = a.company||'';
+      document.getElementById('acct-country').value = a.country||'';
+      document.getElementById('acct-industry').value= a.industry||'';
+      document.getElementById('acct-type').value    = a.type||'';
+      document.getElementById('acct-status').value  = a.status||'lead';
+      document.getElementById('acct-source').value  = a.source||'';
+      document.getElementById('acct-factory').value = a.factory||'either';
+      document.getElementById('acct-website').value = a.website||'';
+      document.getElementById('acct-owner').value   = a.owner||'';
+      document.getElementById('acct-notes').value   = a.notes||'';
+      delBtn.style.display = (currentUser?.role==='admin') ? 'inline-flex' : 'none';
+      showAcctTab('contacts');
+    }
+  } else {
+    titleEl.textContent = '新增客戶';
+    document.getElementById('acct-owner').value = currentUser?.empId || '';
+    delBtn.style.display = 'none';
+    showAcctTab('contacts');
+  }
+  ov.style.display='flex';
+}
+function closeAccountModal(e){
+  if(e && e.target.id !== 'acctOverlay') return;
+  document.getElementById('acctOverlay').style.display='none';
+  _editAcctId = null;
+}
+async function saveAccount(){
+  const company = document.getElementById('acct-company').value.trim();
+  if(!company){ toast('請輸入公司名稱'); return; }
+  const a = {
+    company,
+    country:  document.getElementById('acct-country').value.trim(),
+    industry: document.getElementById('acct-industry').value.trim(),
+    type:     document.getElementById('acct-type').value,
+    status:   document.getElementById('acct-status').value,
+    source:   document.getElementById('acct-source').value.trim(),
+    factory:  document.getElementById('acct-factory').value,
+    website:  document.getElementById('acct-website').value.trim(),
+    owner:    document.getElementById('acct-owner').value.trim() || (currentUser?.empId||''),
+    notes:    document.getElementById('acct-notes').value.trim(),
+    updatedAt: Date.now(),
+  };
+  try {
+    if(_editAcctId){
+      await db.collection(COL_CA).doc(_editAcctId).set({...a, id:_editAcctId}, {merge:true});
+    } else {
+      a.createdAt = Date.now();
+      a.createdBy = currentUser?.empId || null;
+      const docRef = await db.collection(COL_CA).add(a);
+      _editAcctId = docRef.id;
+      await db.collection(COL_CA).doc(docRef.id).set({id:docRef.id}, {merge:true});
+    }
+    toast('✅ 已儲存');
+    closeAccountModal();
+  } catch(e){ toast('儲存失敗: '+e.message); }
+}
+async function deleteAccount(){
+  if(!_editAcctId) return;
+  if(currentUser?.role!=='admin'){ toast('只有 Admin 可以刪除'); return; }
+  if(!confirm('確定刪除此客戶？所有聯絡人/互動紀錄/任務也會被刪除。')) return;
+  try {
+    await db.collection(COL_CA).doc(_editAcctId).delete();
+    // Cascade delete
+    const sub = ['crm_contacts','crm_activities','crm_tasks'];
+    for(const col of sub){
+      const docs = await db.collection(col).where('accountId','==',_editAcctId).get();
+      const batch = db.batch();
+      docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+    toast('已刪除');
+    closeAccountModal();
+  } catch(e){ toast('刪除失敗: '+e.message); }
+}
+
+// ── ACCOUNT MODAL TABS ───────────────────────
+function showAcctTab(t){
+  ['contacts','activities','quotes','tasks'].forEach(x=>{
+    document.querySelectorAll(`[data-acct-tab="${x}"]`).forEach(b=>b.classList.toggle('on',x===t));
+    const c=document.getElementById('acct-tab-'+x);
+    if(c) c.style.display = (x===t) ? 'block' : 'none';
+  });
+  if(t==='contacts')   renderAcctContacts();
+  if(t==='activities') renderAcctActivities();
+  if(t==='quotes')     renderAcctQuotes();
+  if(t==='tasks')      renderAcctTasks();
+}
+
+function renderAcctContacts(){
+  const el = document.getElementById('acct-contacts-list');
+  if(!el || !_editAcctId) { if(el) el.innerHTML=''; return; }
+  const list = CRM_CONTACTS.filter(c=>c.accountId===_editAcctId);
+  if(!list.length){ el.innerHTML='<div style="padding:14px;color:var(--tx3);font-size:12px;text-align:center">尚無聯絡人</div>'; return; }
+  el.innerHTML = list.map(c=>`
+    <div onclick="openContactModal('${c.id}')"
+      style="padding:10px 12px;border:1px solid var(--br);border-radius:8px;margin-bottom:6px;background:var(--s2);cursor:pointer;display:flex;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--tx)">${escHtml(c.name||'')}${c.title?` · <span style="color:var(--tx3);font-weight:normal">${escHtml(c.title)}</span>`:''}</div>
+        <div style="font-size:11px;color:var(--tx3);margin-top:2px">${c.email?escHtml(c.email):''}${c.phone?(' · '+escHtml(c.phone)):''}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderAcctActivities(){
+  const el = document.getElementById('acct-activities-list');
+  if(!el || !_editAcctId) { if(el) el.innerHTML=''; return; }
+  const list = CRM_ACTIVITIES.filter(v=>v.accountId===_editAcctId).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(!list.length){ el.innerHTML='<div style="padding:14px;color:var(--tx3);font-size:12px;text-align:center">尚無互動紀錄</div>'; return; }
+  el.innerHTML = list.map(v=>{
+    const ty = CRM_ACT_TYPES.find(x=>x.id===v.type) || {icon:'📌',label:''};
+    return `<div onclick="openActivityModal('${v.id}')"
+      style="padding:10px 12px;border:1px solid var(--br);border-radius:8px;margin-bottom:6px;background:var(--s2);cursor:pointer">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:14px">${ty.icon}</span>
+        <div style="flex:1;font-size:12px;font-weight:600;color:var(--tx)">${escHtml(v.title||'')}</div>
+        <div style="font-size:10px;color:var(--tx3)">${v.date||''}</div>
+      </div>
+      ${v.detail?`<div style="font-size:11px;color:var(--tx2);margin-top:4px;padding-left:22px">${escHtml(v.detail).slice(0,200)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderAcctQuotes(){
+  const el = document.getElementById('acct-quotes-list');
+  if(!el || !_editAcctId) { if(el) el.innerHTML=''; return; }
+  const a = CRM_ACCOUNTS.find(x=>x.id===_editAcctId);
+  const list = QUOTES.filter(q => q.accountId===_editAcctId || (a && (q.company||'').toLowerCase()===(a.company||'').toLowerCase()));
+  if(!list.length){ el.innerHTML='<div style="padding:14px;color:var(--tx3);font-size:12px;text-align:center">尚無報價紀錄</div>'; return; }
+  list.sort((x,y)=>(y.date||'').localeCompare(x.date||''));
+  el.innerHTML = list.map(q=>`
+    <div onclick="closeAccountModal(); editQuote('${q.id}')"
+      style="padding:10px 12px;border:1px solid var(--br);border-radius:8px;margin-bottom:6px;background:var(--s2);cursor:pointer;display:flex;gap:10px;align-items:center">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--tx)">${escHtml(q.ref||'')}</div>
+        <div style="font-size:11px;color:var(--tx3)">${q.date||''} · ${q.products?.length||0} 產品 · ${escHtml(q.status||'draft')}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderAcctTasks(){
+  const el = document.getElementById('acct-tasks-list');
+  if(!el || !_editAcctId) { if(el) el.innerHTML=''; return; }
+  const list = CRM_TASKS.filter(t=>t.accountId===_editAcctId).sort((a,b)=>(a.due||'').localeCompare(b.due||''));
+  if(!list.length){ el.innerHTML='<div style="padding:14px;color:var(--tx3);font-size:12px;text-align:center">尚無任務</div>'; return; }
+  el.innerHTML = list.map(tk=>{
+    const isOverdue = tk.due && tk.due < (new Date().toISOString().slice(0,10)) && !tk.done;
+    const pri = tk.priority==='high'?'🔴':(tk.priority==='low'?'🟢':'🟡');
+    return `<div onclick="openTaskModal('${tk.id}')"
+      style="padding:10px 12px;border:1px solid ${isOverdue?'#ef4444':'var(--br)'};border-radius:8px;margin-bottom:6px;background:${tk.done?'rgba(16,163,127,.05)':'var(--s2)'};cursor:pointer">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span>${tk.done?'✅':pri}</span>
+        <div style="flex:1;font-size:12px;font-weight:${tk.done?'400':'600'};color:${tk.done?'var(--tx3)':'var(--tx)'};text-decoration:${tk.done?'line-through':'none'}">${escHtml(tk.title||'')}</div>
+        ${tk.due?`<div style="font-size:10px;color:${isOverdue?'#ef4444':'var(--tx3)'}">${tk.due}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── CONTACT MODAL ────────────────────────────
+function openContactModal(id){
+  _editContactId = id || null;
+  ['ct-name','ct-title','ct-email','ct-phone','ct-linkedin'].forEach(k=>{ const e=document.getElementById(k); if(e)e.value=''; });
+  document.getElementById('ct-role').value='';
+  if(id){
+    const c=CRM_CONTACTS.find(x=>x.id===id);
+    if(c){
+      document.getElementById('ct-name').value=c.name||'';
+      document.getElementById('ct-title').value=c.title||'';
+      document.getElementById('ct-role').value=c.role||'';
+      document.getElementById('ct-email').value=c.email||'';
+      document.getElementById('ct-phone').value=c.phone||'';
+      document.getElementById('ct-linkedin').value=c.linkedin||'';
+      document.getElementById('ct-del-btn').style.display='inline-flex';
+    }
+  } else {
+    document.getElementById('ct-del-btn').style.display='none';
+  }
+  document.getElementById('contactOverlay').style.display='flex';
+}
+function closeContactModal(e){
+  if(e && e.target.id!=='contactOverlay') return;
+  document.getElementById('contactOverlay').style.display='none';
+  _editContactId=null;
+}
+async function saveContact(){
+  const name = document.getElementById('ct-name').value.trim();
+  if(!name){ toast('請輸入姓名'); return; }
+  if(!_editAcctId){ toast('請先儲存客戶'); return; }
+  const c = {
+    accountId:_editAcctId, name,
+    title: document.getElementById('ct-title').value.trim(),
+    role:  document.getElementById('ct-role').value,
+    email: document.getElementById('ct-email').value.trim(),
+    phone: document.getElementById('ct-phone').value.trim(),
+    linkedin: document.getElementById('ct-linkedin').value.trim(),
+    updatedAt: Date.now(),
+  };
+  try {
+    if(_editContactId){
+      await db.collection(COL_CC).doc(_editContactId).set(c, {merge:true});
+    } else {
+      c.createdAt=Date.now();
+      const ref=await db.collection(COL_CC).add(c);
+      await db.collection(COL_CC).doc(ref.id).set({id:ref.id},{merge:true});
+    }
+    toast('✅ 已儲存');
+    closeContactModal();
+  } catch(e){ toast('失敗: '+e.message); }
+}
+async function deleteContact(){
+  if(!_editContactId) return;
+  if(!confirm('刪除此聯絡人？')) return;
+  await db.collection(COL_CC).doc(_editContactId).delete();
+  toast('已刪除');
+  closeContactModal();
+}
+
+// ── ACTIVITY MODAL ───────────────────────────
+function openActivityModal(id){
+  _editActivityId = id || null;
+  document.getElementById('av-type').value='meeting';
+  document.getElementById('av-date').value = new Date().toISOString().slice(0,10);
+  ['av-title','av-detail','av-followup'].forEach(k=>{ const e=document.getElementById(k);if(e)e.value=''; });
+  if(id){
+    const v = CRM_ACTIVITIES.find(x=>x.id===id);
+    if(v){
+      document.getElementById('av-type').value=v.type||'meeting';
+      document.getElementById('av-date').value=v.date||'';
+      document.getElementById('av-title').value=v.title||'';
+      document.getElementById('av-detail').value=v.detail||'';
+      document.getElementById('av-followup').value=v.followup||'';
+      document.getElementById('av-del-btn').style.display='inline-flex';
+    }
+  } else {
+    document.getElementById('av-del-btn').style.display='none';
+  }
+  document.getElementById('activityOverlay').style.display='flex';
+}
+function closeActivityModal(e){
+  if(e && e.target.id!=='activityOverlay') return;
+  document.getElementById('activityOverlay').style.display='none';
+  _editActivityId=null;
+}
+async function saveActivity(){
+  const title = document.getElementById('av-title').value.trim();
+  const date  = document.getElementById('av-date').value;
+  if(!title){ toast('請輸入標題'); return; }
+  if(!date){ toast('請選日期'); return; }
+  if(!_editAcctId){ toast('請先儲存客戶'); return; }
+  const v = {
+    accountId:_editAcctId, title, date,
+    type: document.getElementById('av-type').value,
+    detail: document.getElementById('av-detail').value.trim(),
+    followup: document.getElementById('av-followup').value.trim(),
+    updatedAt: Date.now(),
+  };
+  try {
+    if(_editActivityId){
+      await db.collection(COL_CV).doc(_editActivityId).set(v,{merge:true});
+    } else {
+      v.createdAt=Date.now(); v.createdBy=currentUser?.empId||null;
+      const r = await db.collection(COL_CV).add(v);
+      await db.collection(COL_CV).doc(r.id).set({id:r.id},{merge:true});
+    }
+    toast('✅ 已儲存');
+    closeActivityModal();
+  } catch(e){ toast('失敗: '+e.message); }
+}
+async function deleteActivity(){
+  if(!_editActivityId) return;
+  if(!confirm('刪除此互動紀錄？')) return;
+  await db.collection(COL_CV).doc(_editActivityId).delete();
+  toast('已刪除');
+  closeActivityModal();
+}
+
+// ── TASK MODAL ───────────────────────────────
+function openTaskModal(id){
+  _editTaskId = id || null;
+  ['tk-title','tk-due','tk-notes'].forEach(k=>{ const e=document.getElementById(k);if(e)e.value=''; });
+  document.getElementById('tk-priority').value='med';
+  // Populate accounts dropdown
+  const sel = document.getElementById('tk-account');
+  if(sel){
+    sel.innerHTML = '<option value="">(無)</option>' + CRM_ACCOUNTS
+      .filter(a=>canViewCRM(a))
+      .sort((x,y)=>(x.company||'').localeCompare(y.company||''))
+      .map(a=>`<option value="${a.id}">${escHtml(a.company||'')}</option>`).join('');
+    sel.value = _editAcctId || '';
+  }
+  if(id){
+    const tk=CRM_TASKS.find(x=>x.id===id);
+    if(tk){
+      document.getElementById('tk-title').value=tk.title||'';
+      document.getElementById('tk-due').value=tk.due||'';
+      document.getElementById('tk-priority').value=tk.priority||'med';
+      document.getElementById('tk-account').value=tk.accountId||'';
+      document.getElementById('tk-notes').value=tk.notes||'';
+      document.getElementById('tk-del-btn').style.display='inline-flex';
+    }
+  } else {
+    document.getElementById('tk-del-btn').style.display='none';
+  }
+  document.getElementById('taskOverlay').style.display='flex';
+}
+function closeTaskModal(e){
+  if(e && e.target.id!=='taskOverlay') return;
+  document.getElementById('taskOverlay').style.display='none';
+  _editTaskId=null;
+}
+async function saveTask(){
+  const title = document.getElementById('tk-title').value.trim();
+  if(!title){ toast('請輸入任務內容'); return; }
+  const tk = {
+    title,
+    due:      document.getElementById('tk-due').value,
+    priority: document.getElementById('tk-priority').value,
+    accountId:document.getElementById('tk-account').value || null,
+    notes:    document.getElementById('tk-notes').value.trim(),
+    done:     CRM_TASKS.find(x=>x.id===_editTaskId)?.done || false,
+    updatedAt: Date.now(),
+  };
+  try {
+    if(_editTaskId){
+      await db.collection(COL_CT).doc(_editTaskId).set(tk,{merge:true});
+    } else {
+      tk.createdAt=Date.now(); tk.createdBy=currentUser?.empId||null;
+      const r = await db.collection(COL_CT).add(tk);
+      await db.collection(COL_CT).doc(r.id).set({id:r.id},{merge:true});
+    }
+    toast('✅ 已儲存');
+    closeTaskModal();
+  } catch(e){ toast('失敗: '+e.message); }
+}
+async function deleteTask(){
+  if(!_editTaskId) return;
+  if(!confirm('刪除此任務？')) return;
+  await db.collection(COL_CT).doc(_editTaskId).delete();
+  toast('已刪除');
+  closeTaskModal();
+}
+async function toggleTaskDone(id, e){
+  if(e) e.stopPropagation();
+  const tk = CRM_TASKS.find(x=>x.id===id);
+  if(!tk) return;
+  await db.collection(COL_CT).doc(id).set({done:!tk.done, updatedAt:Date.now()},{merge:true});
+}
+
+// ── PIPELINE BOARD ───────────────────────────
+function renderCRMPipeline(){
+  const el = document.getElementById('crmPipelineBoard');
+  if(!el) return;
+  // Each account's stage = highest priority stage from their quotes/activities
+  // For simplicity: derive from account.status + last quote
+  const stages = CRM_STAGES;
+  el.style.display='grid';
+  el.style.gridTemplateColumns = `repeat(${stages.length}, minmax(160px, 1fr))`;
+  el.style.gap='10px';
+  el.innerHTML = stages.map(st=>{
+    const accts = CRM_ACCOUNTS.filter(a => canViewCRM(a) && _stageOfAccount(a)===st.id);
+    return `<div style="background:var(--s1);border:1px solid var(--br);border-radius:10px;padding:10px;min-height:200px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--br)">
+        <div style="width:8px;height:8px;border-radius:50%;background:${st.color}"></div>
+        <div style="font-size:12px;font-weight:700;color:var(--tx);flex:1">${st.label}</div>
+        <div style="font-size:11px;color:var(--tx3)">${accts.length}</div>
+      </div>
+      ${accts.map(a=>`<div onclick="openAccountModal('${a.id}')"
+        style="padding:8px 10px;background:var(--s2);border-radius:6px;margin-bottom:6px;cursor:pointer;font-size:11px;color:var(--tx);border-left:3px solid ${st.color}">
+        <div style="font-weight:600">${escHtml(a.company||'')}</div>
+        <div style="font-size:10px;color:var(--tx3);margin-top:2px">${escHtml(a.country||'')}</div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+function _stageOfAccount(a){
+  if(a.status==='customer') return 'won';
+  if(a.status==='lost') return 'lost';
+  // Look at most recent activity
+  const acts = CRM_ACTIVITIES.filter(v=>v.accountId===a.id).sort((x,y)=>(y.date||'').localeCompare(x.date||''));
+  if(acts.find(v=>v.type==='order' || v.type==='contract')) return 'won';
+  if(acts.find(v=>v.type==='sample')) return 'sample';
+  if(acts.find(v=>v.type==='quote')) return 'quoted';
+  // Has any quote?
+  const hasQ = QUOTES.some(q => q.accountId===a.id || (q.company||'').toLowerCase()===(a.company||'').toLowerCase());
+  if(hasQ) return 'quoted';
+  return 'lead';
+}
+
+// ── TASKS LIST (full page) ───────────────────
+function renderCRMTasks(){
+  const el = document.getElementById('crmTasksList');
+  if(!el) return;
+  const filter = document.getElementById('crm-task-filter')?.value || 'open';
+  const today = new Date().toISOString().slice(0,10);
+  const weekFromNow = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  let list = CRM_TASKS.slice();
+  if(filter==='open')    list = list.filter(t=>!t.done);
+  if(filter==='done')    list = list.filter(t=>t.done);
+  if(filter==='overdue') list = list.filter(t=>!t.done && t.due && t.due<today);
+  if(filter==='today')   list = list.filter(t=>!t.done && t.due===today);
+  if(filter==='week')    list = list.filter(t=>!t.done && t.due && t.due<=weekFromNow);
+  list.sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'));
+  if(!list.length){ el.innerHTML='<div style="padding:40px;text-align:center;color:var(--tx3);font-size:13px">沒有符合條件的任務</div>'; return; }
+  el.innerHTML = list.map(tk=>{
+    const isOverdue = tk.due && tk.due < today && !tk.done;
+    const pri = tk.priority==='high'?'🔴':(tk.priority==='low'?'🟢':'🟡');
+    const acct = CRM_ACCOUNTS.find(a=>a.id===tk.accountId);
+    return `<div style="padding:11px 13px;border:1px solid ${isOverdue?'#ef4444':'var(--br)'};border-radius:9px;margin-bottom:7px;background:${tk.done?'rgba(16,163,127,.05)':'var(--s1)'};display:flex;align-items:center;gap:10px">
+      <div onclick="toggleTaskDone('${tk.id}',event)" style="cursor:pointer;font-size:18px">${tk.done?'✅':'⬜'}</div>
+      <div style="flex:1;cursor:pointer" onclick="openTaskModal('${tk.id}')">
+        <div style="font-size:13px;font-weight:${tk.done?'400':'600'};color:${tk.done?'var(--tx3)':'var(--tx)'};text-decoration:${tk.done?'line-through':'none'}">${pri} ${escHtml(tk.title||'')}</div>
+        <div style="font-size:11px;color:var(--tx3);margin-top:2px">
+          ${tk.due?`<span style="color:${isOverdue?'#ef4444':'inherit'}">📅 ${tk.due}${isOverdue?' (逾期)':''}</span>`:''}
+          ${acct?`<span style="margin-left:10px">🏢 ${escHtml(acct.company)}</span>`:''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── ACTIVITIES LIST (full page) ──────────────
+function renderCRMActivities(){
+  const el = document.getElementById('crmActivitiesList');
+  if(!el) return;
+  const q = (document.getElementById('crm-act-search')?.value||'').toLowerCase().trim();
+  let list = CRM_ACTIVITIES.slice();
+  if(q){
+    list = list.filter(v=>{
+      const a = CRM_ACCOUNTS.find(x=>x.id===v.accountId);
+      return (v.title||'').toLowerCase().includes(q)
+          || (v.detail||'').toLowerCase().includes(q)
+          || (a && (a.company||'').toLowerCase().includes(q));
+    });
+  }
+  list.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(!list.length){ el.innerHTML='<div style="padding:40px;text-align:center;color:var(--tx3);font-size:13px">尚無互動紀錄</div>'; return; }
+  el.innerHTML = list.slice(0,100).map(v=>{
+    const ty = CRM_ACT_TYPES.find(x=>x.id===v.type) || {icon:'📌',label:''};
+    const acct = CRM_ACCOUNTS.find(a=>a.id===v.accountId);
+    return `<div onclick="openAccountModal('${v.accountId}')"
+      style="padding:11px 13px;border:1px solid var(--br);border-radius:9px;margin-bottom:7px;background:var(--s1);cursor:pointer">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:15px">${ty.icon}</span>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:600;color:var(--tx)">${escHtml(v.title||'')}</div>
+          <div style="font-size:10px;color:var(--tx3);margin-top:2px">${acct?escHtml(acct.company):'(無客戶)'} · ${v.date||''}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════
+// CRM INTEGRATION HELPERS
+// ════════════════════════════════════════════════
+
+// Find account by company name (case-insensitive)
+function findAccountByName(company){
+  if(!company) return null;
+  const n = company.toLowerCase().trim();
+  return CRM_ACCOUNTS.find(a => (a.company||'').toLowerCase().trim() === n);
+}
+
+// Confirm dialog: ask user whether to add/update CRM
+function askAddToCRM(msg, onYes){
+  const ov = document.getElementById('crmConfirmOverlay');
+  const m  = document.getElementById('crmConfirmMsg');
+  const y  = document.getElementById('crmConfirmYes');
+  if(!ov || !m || !y) return;
+  m.innerHTML = msg;
+  y.onclick = () => { closeCRMConfirm(); onYes && onYes(); };
+  ov.style.display = 'flex';
+}
+function closeCRMConfirm(e){
+  if(e && e.target.id!=='crmConfirmOverlay') return;
+  document.getElementById('crmConfirmOverlay').style.display='none';
+}
+
+// Auto-link a quote to CRM account (called from saveQuote)
+async function syncQuoteToCRM(quote){
+  if(!quote || !quote.company) return;
+  let acct = findAccountByName(quote.company);
+  if(!acct){
+    // Auto-create account
+    const newAcct = {
+      company: quote.company,
+      country: '',
+      status: 'active',
+      source: 'Quote ' + (quote.ref||''),
+      factory: 'either',
+      owner: currentUser?.empId || '',
+      notes: '從報價單自動建立',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      createdBy: currentUser?.empId || null,
+    };
+    try {
+      const r = await db.collection(COL_CA).add(newAcct);
+      await db.collection(COL_CA).doc(r.id).set({id:r.id},{merge:true});
+      acct = {...newAcct, id:r.id};
+      toast('👥 已自動建立客戶: '+quote.company);
+    } catch(e){ console.warn('CRM auto-create failed:',e); return; }
+  }
+  // Link quote → account
+  if(quote.id && acct.id && quote.accountId !== acct.id){
+    try {
+      await db.collection(COL_Q).doc(quote.id).set({accountId:acct.id},{merge:true});
+    } catch(e){ console.warn('Quote-CRM link failed:',e); }
+  }
+  // Auto-create contact if email is new
+  if(quote.attn || quote.email){
+    const exists = CRM_CONTACTS.find(c=>c.accountId===acct.id && (
+      (c.email && c.email===quote.email) || (c.name===quote.attn && quote.attn)
+    ));
+    if(!exists && (quote.attn || quote.email)){
+      try {
+        const c = {
+          accountId: acct.id,
+          name: quote.attn||'',
+          email: quote.email||'',
+          phone: quote.tel||'',
+          createdAt: Date.now(), updatedAt: Date.now(),
+        };
+        const r = await db.collection(COL_CC).add(c);
+        await db.collection(COL_CC).doc(r.id).set({id:r.id},{merge:true});
+      } catch(e){ console.warn('CRM auto-contact failed:',e); }
+    }
+  }
+  // Auto-create activity for the quote
+  try {
+    await db.collection(COL_CV).add({
+      accountId: acct.id,
+      type: 'quote',
+      title: 'Quote: ' + (quote.ref||''),
+      date: quote.date || new Date().toISOString().slice(0,10),
+      detail: `${quote.products?.length||0} products`,
+      createdAt: Date.now(), createdBy: currentUser?.empId || null,
+    });
+  } catch(e){ console.warn('CRM activity failed:',e); }
+}
+
+// Add to CRM from a card-scan info object
+async function addCardInfoToCRM(info, source){
+  if(!info || !info.company) { toast('名片缺少公司資訊'); return; }
+  let acct = findAccountByName(info.company);
+  if(acct){
+    // Update existing — add new contact if applicable
+    if(info.name || info.email){
+      const exists = CRM_CONTACTS.find(c=>c.accountId===acct.id && (
+        (c.email && info.email && c.email.toLowerCase()===info.email.toLowerCase()) ||
+        (c.name===info.name && info.name)
+      ));
+      if(!exists){
+        try {
+          const c = {
+            accountId: acct.id,
+            name: info.name||'',
+            title: info.title||'',
+            email: info.email||'',
+            phone: info.phone||'',
+            createdAt: Date.now(), updatedAt: Date.now(),
+          };
+          const r = await db.collection(COL_CC).add(c);
+          await db.collection(COL_CC).doc(r.id).set({id:r.id},{merge:true});
+          toast('✅ 已新增聯絡人到 '+info.company);
+        } catch(e){ toast('失敗: '+e.message); return; }
+      } else {
+        toast('聯絡人已存在於 CRM');
+      }
+    }
+  } else {
+    // Create new account + contact
+    try {
+      const newAcct = {
+        company: info.company,
+        country: '', status: 'lead',
+        source: source || '名片掃描',
+        factory: 'either',
+        owner: currentUser?.empId || '',
+        createdAt: Date.now(), updatedAt: Date.now(),
+        createdBy: currentUser?.empId || null,
+      };
+      const r = await db.collection(COL_CA).add(newAcct);
+      await db.collection(COL_CA).doc(r.id).set({id:r.id},{merge:true});
+      if(info.name || info.email){
+        const c = {
+          accountId: r.id,
+          name: info.name||'', title: info.title||'',
+          email: info.email||'', phone: info.phone||'',
+          createdAt: Date.now(), updatedAt: Date.now(),
+        };
+        const cr = await db.collection(COL_CC).add(c);
+        await db.collection(COL_CC).doc(cr.id).set({id:cr.id},{merge:true});
+      }
+      toast('✅ 已加入 CRM: '+info.company);
+    } catch(e){ toast('失敗: '+e.message); }
+  }
+}
+
+// Prompt user — called from card-scan flows
+function promptAddCardToCRM(info, source){
+  if(!info || !info.company) return;
+  const existing = findAccountByName(info.company);
+  let msg;
+  if(existing){
+    const hasContact = CRM_CONTACTS.find(c=>c.accountId===existing.id && (
+      (c.email && info.email && c.email.toLowerCase()===info.email.toLowerCase()) ||
+      (c.name===info.name && info.name)
+    ));
+    if(hasContact){
+      // Don't prompt — nothing new
+      return;
+    }
+    msg = `客戶 <b>${escHtml(info.company)}</b> 已在 CRM 中。<br>是否將聯絡人 <b>${escHtml(info.name||info.email||'(此人)')}</b> 加入該客戶？`;
+  } else {
+    msg = `將 <b>${escHtml(info.company)}</b>${info.name?` (${escHtml(info.name)})`:''} 加入 CRM 客戶？`;
+  }
+  askAddToCRM(msg, () => addCardInfoToCRM(info, source));
 }
 
 // ── FILES HOVER PREVIEW ───────────────────────────
@@ -5635,6 +6526,275 @@ init();
     </div>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- CRM PAGE                                 -->
+<!-- ═══════════════════════════════════════ -->
+<div class="page" id="pageCRM" style="padding:0;max-width:1200px;margin:0 auto;flex-direction:column;height:calc(100vh - 56px)">
+  <!-- Sub-tab bar -->
+  <div style="display:flex;align-items:center;gap:6px;padding:10px 14px;border-bottom:1px solid var(--br);flex-shrink:0;flex-wrap:wrap">
+    <div style="font-size:14px;font-weight:700;color:#10a37f;margin-right:6px">👥 CRM</div>
+    <button class="moq-chip on" id="crmtab-accounts" onclick="showCRMTab('accounts')">🏢 客戶</button>
+    <button class="moq-chip"    id="crmtab-pipeline" onclick="showCRMTab('pipeline')">📊 Pipeline</button>
+    <button class="moq-chip"    id="crmtab-tasks"    onclick="showCRMTab('tasks')">✓ 任務</button>
+    <button class="moq-chip"    id="crmtab-activities" onclick="showCRMTab('activities')">📋 互動</button>
+    <button onclick="openAccountModal()"
+      style="margin-left:auto;padding:6px 12px;border-radius:8px;background:#10a37f;color:#fff;font-size:12px;font-weight:600;border:none;cursor:pointer">+ 新增客戶</button>
+  </div>
+
+  <!-- Accounts Tab -->
+  <div id="crmtab-content-accounts" style="flex:1;overflow-y:auto;padding:14px 16px">
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <input id="crm-search" placeholder="🔍 搜尋公司名/國家/聯絡人…" oninput="renderCRMAccounts()"
+        style="flex:1;min-width:200px;padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--bg);color:var(--tx);font-size:12px;outline:none">
+      <select id="crm-filter-status" onchange="renderCRMAccounts()"
+        style="padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--bg);color:var(--tx);font-size:12px;outline:none">
+        <option value="">全部狀態</option>
+        <option value="lead">潛在客戶</option>
+        <option value="active">進行中</option>
+        <option value="customer">已成交</option>
+        <option value="lost">已流失</option>
+        <option value="dormant">暫停</option>
+      </select>
+      <select id="crm-filter-factory" onchange="renderCRMAccounts()"
+        style="padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--bg);color:var(--tx);font-size:12px;outline:none">
+        <option value="">全部廠別</option>
+        <option value="china">中國廠</option>
+        <option value="vietnam">越南廠</option>
+        <option value="either">兩者皆可</option>
+      </select>
+    </div>
+    <div id="crmAccountsList"></div>
+  </div>
+
+  <!-- Pipeline Tab -->
+  <div id="crmtab-content-pipeline" style="display:none;flex:1;overflow-y:auto;padding:14px 16px">
+    <div id="crmPipelineBoard"></div>
+  </div>
+
+  <!-- Tasks Tab -->
+  <div id="crmtab-content-tasks" style="display:none;flex:1;overflow-y:auto;padding:14px 16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <select id="crm-task-filter" onchange="renderCRMTasks()"
+        style="padding:7px 10px;border-radius:8px;border:1px solid var(--br);background:var(--bg);color:var(--tx);font-size:12px;outline:none">
+        <option value="open">未完成</option>
+        <option value="overdue">逾期</option>
+        <option value="today">今天</option>
+        <option value="week">本週</option>
+        <option value="all">全部</option>
+        <option value="done">已完成</option>
+      </select>
+      <button onclick="openTaskModal()"
+        style="margin-left:auto;padding:6px 12px;border-radius:8px;background:#10a37f;color:#fff;font-size:12px;font-weight:600;border:none;cursor:pointer">+ 新增任務</button>
+    </div>
+    <div id="crmTasksList"></div>
+  </div>
+
+  <!-- Activities Tab -->
+  <div id="crmtab-content-activities" style="display:none;flex:1;overflow-y:auto;padding:14px 16px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <input id="crm-act-search" placeholder="🔍 搜尋互動紀錄…" oninput="renderCRMActivities()"
+        style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--bg);color:var(--tx);font-size:12px;outline:none">
+    </div>
+    <div id="crmActivitiesList"></div>
+  </div>
+</div>
+
+<!-- Account Detail Modal -->
+<div class="overlay" id="acctOverlay" onclick="closeAccountModal(event)" style="display:none">
+  <div class="modal" style="width:100%;max-width:760px;max-height:94vh;overflow-y:auto">
+    <div class="modal-hdr">
+      <div id="acct-title" style="font-size:16px;font-weight:700">客戶詳情</div>
+      <button class="icon-btn" onclick="closeAccountModal()" style="margin-left:auto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field" style="grid-column:span 2"><label>公司名稱 *</label>
+        <input id="acct-company" autocomplete="off"></div>
+      <div class="field"><label>國家/地區</label>
+        <input id="acct-country" autocomplete="off" placeholder="e.g. USA, Germany"></div>
+      <div class="field"><label>產業別</label>
+        <input id="acct-industry" autocomplete="off" placeholder="e.g. Mobile Accessory"></div>
+      <div class="field"><label>公司性質</label>
+        <select id="acct-type">
+          <option value="">--</option>
+          <option value="brand">品牌商</option>
+          <option value="distributor">經銷商</option>
+          <option value="retailer">零售商</option>
+          <option value="manufacturer">製造商</option>
+          <option value="other">其他</option>
+        </select></div>
+      <div class="field"><label>狀態</label>
+        <select id="acct-status">
+          <option value="lead">潛在客戶</option>
+          <option value="active">進行中</option>
+          <option value="customer">已成交</option>
+          <option value="lost">已流失</option>
+          <option value="dormant">暫停</option>
+        </select></div>
+      <div class="field"><label>來源</label>
+        <input id="acct-source" autocomplete="off" placeholder="e.g. Global Sources HK 2026"></div>
+      <div class="field"><label>偏好工廠</label>
+        <select id="acct-factory">
+          <option value="either">兩者皆可</option>
+          <option value="china">中國廠</option>
+          <option value="vietnam">越南廠</option>
+        </select></div>
+      <div class="field"><label>官網</label>
+        <input id="acct-website" autocomplete="off" placeholder="https://..."></div>
+      <div class="field"><label>負責業務 (Owner)</label>
+        <input id="acct-owner" autocomplete="off" placeholder="empId"></div>
+      <div class="field" style="grid-column:span 2"><label>備註 / 客戶需求</label>
+        <textarea id="acct-notes" rows="3" style="resize:vertical"></textarea></div>
+    </div>
+    <div style="border-top:1px solid var(--br);padding:12px 16px;display:flex;gap:6px;flex-wrap:wrap" id="acct-tabbar">
+      <button class="moq-chip on" onclick="showAcctTab('contacts')" data-acct-tab="contacts">👤 聯絡人</button>
+      <button class="moq-chip"    onclick="showAcctTab('activities')" data-acct-tab="activities">📋 互動歷史</button>
+      <button class="moq-chip"    onclick="showAcctTab('quotes')" data-acct-tab="quotes">💰 報價歷史</button>
+      <button class="moq-chip"    onclick="showAcctTab('tasks')" data-acct-tab="tasks">✓ 任務</button>
+    </div>
+    <div style="padding:0 16px 16px;min-height:140px">
+      <div id="acct-tab-contacts"><div id="acct-contacts-list"></div>
+        <button onclick="openContactModal()" style="margin-top:8px;padding:7px 14px;border-radius:8px;background:var(--s2);color:var(--tx);border:1px solid var(--br);font-size:12px;cursor:pointer">+ 新增聯絡人</button></div>
+      <div id="acct-tab-activities" style="display:none"><div id="acct-activities-list"></div>
+        <button onclick="openActivityModal()" style="margin-top:8px;padding:7px 14px;border-radius:8px;background:var(--s2);color:var(--tx);border:1px solid var(--br);font-size:12px;cursor:pointer">+ 新增互動紀錄</button></div>
+      <div id="acct-tab-quotes" style="display:none"><div id="acct-quotes-list"></div></div>
+      <div id="acct-tab-tasks" style="display:none"><div id="acct-tasks-list"></div>
+        <button onclick="openTaskModal()" style="margin-top:8px;padding:7px 14px;border-radius:8px;background:var(--s2);color:var(--tx);border:1px solid var(--br);font-size:12px;cursor:pointer">+ 新增任務</button></div>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--br);display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="saveAccount()">💾 儲存客戶</button>
+      <button class="btn btn-ghost" onclick="closeAccountModal()">取消</button>
+      <button class="btn btn-danger btn-sm" id="acct-del-btn" onclick="deleteAccount()" style="margin-left:auto;display:none">🗑 刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Contact Modal -->
+<div class="overlay" id="contactOverlay" onclick="closeContactModal(event)" style="display:none">
+  <div class="modal" style="width:100%;max-width:480px">
+    <div class="modal-hdr">
+      <div style="font-size:15px;font-weight:700">聯絡人</div>
+      <button class="icon-btn" onclick="closeContactModal()" style="margin-left:auto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field" style="grid-column:span 2"><label>姓名 *</label>
+        <input id="ct-name" autocomplete="off"></div>
+      <div class="field"><label>職稱</label>
+        <input id="ct-title" autocomplete="off"></div>
+      <div class="field"><label>角色</label>
+        <select id="ct-role">
+          <option value="">--</option>
+          <option value="decision">決策者</option>
+          <option value="purchasing">採購</option>
+          <option value="engineer">工程</option>
+          <option value="owner">老闆</option>
+          <option value="other">其他</option>
+        </select></div>
+      <div class="field"><label>Email</label>
+        <input id="ct-email" type="email" autocomplete="off"></div>
+      <div class="field"><label>電話</label>
+        <input id="ct-phone" autocomplete="off"></div>
+      <div class="field" style="grid-column:span 2"><label>LinkedIn</label>
+        <input id="ct-linkedin" autocomplete="off"></div>
+    </div>
+    <div style="padding:12px 14px;border-top:1px solid var(--br);display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="saveContact()">💾 儲存</button>
+      <button class="btn btn-ghost" onclick="closeContactModal()">取消</button>
+      <button class="btn btn-danger btn-sm" id="ct-del-btn" onclick="deleteContact()" style="margin-left:auto;display:none">🗑 刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Activity Modal -->
+<div class="overlay" id="activityOverlay" onclick="closeActivityModal(event)" style="display:none">
+  <div class="modal" style="width:100%;max-width:520px">
+    <div class="modal-hdr">
+      <div style="font-size:15px;font-weight:700">互動紀錄</div>
+      <button class="icon-btn" onclick="closeActivityModal()" style="margin-left:auto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field"><label>類型 *</label>
+        <select id="av-type">
+          <option value="meeting">🤝 會議</option>
+          <option value="show">🎪 展會見面</option>
+          <option value="quote">📋 報價</option>
+          <option value="sample">📦 樣品寄送</option>
+          <option value="contract">📝 合約簽訂</option>
+          <option value="order">✅ 下單</option>
+          <option value="email">📧 重要 Email</option>
+          <option value="call">📞 重要通話</option>
+          <option value="note">📌 其他備註</option>
+        </select></div>
+      <div class="field"><label>日期 *</label>
+        <input id="av-date" type="date" autocomplete="off"></div>
+      <div class="field" style="grid-column:span 2"><label>標題 / 摘要 *</label>
+        <input id="av-title" autocomplete="off" placeholder="一句話摘要"></div>
+      <div class="field" style="grid-column:span 2"><label>詳細內容</label>
+        <textarea id="av-detail" rows="4" style="resize:vertical"></textarea></div>
+      <div class="field" style="grid-column:span 2"><label>後續動作</label>
+        <input id="av-followup" autocomplete="off" placeholder="e.g. 3 天後寄樣品"></div>
+    </div>
+    <div style="padding:12px 14px;border-top:1px solid var(--br);display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="saveActivity()">💾 儲存</button>
+      <button class="btn btn-ghost" onclick="closeActivityModal()">取消</button>
+      <button class="btn btn-danger btn-sm" id="av-del-btn" onclick="deleteActivity()" style="margin-left:auto;display:none">🗑 刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Modal -->
+<div class="overlay" id="taskOverlay" onclick="closeTaskModal(event)" style="display:none">
+  <div class="modal" style="width:100%;max-width:480px">
+    <div class="modal-hdr">
+      <div style="font-size:15px;font-weight:700">任務</div>
+      <button class="icon-btn" onclick="closeTaskModal()" style="margin-left:auto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field" style="grid-column:span 2"><label>任務內容 *</label>
+        <input id="tk-title" autocomplete="off" placeholder="e.g. 跟進報價回覆"></div>
+      <div class="field"><label>到期日</label>
+        <input id="tk-due" type="date" autocomplete="off"></div>
+      <div class="field"><label>優先順序</label>
+        <select id="tk-priority">
+          <option value="high">🔴 高</option>
+          <option value="med" selected>🟡 中</option>
+          <option value="low">🟢 低</option>
+        </select></div>
+      <div class="field" style="grid-column:span 2"><label>關聯客戶</label>
+        <select id="tk-account"></select></div>
+      <div class="field" style="grid-column:span 2"><label>備註</label>
+        <textarea id="tk-notes" rows="3" style="resize:vertical"></textarea></div>
+    </div>
+    <div style="padding:12px 14px;border-top:1px solid var(--br);display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="saveTask()">💾 儲存</button>
+      <button class="btn btn-ghost" onclick="closeTaskModal()">取消</button>
+      <button class="btn btn-danger btn-sm" id="tk-del-btn" onclick="deleteTask()" style="margin-left:auto;display:none">🗑 刪除</button>
+    </div>
+  </div>
+</div>
+
+<!-- CRM Confirm Add Modal -->
+<div class="overlay" id="crmConfirmOverlay" onclick="closeCRMConfirm(event)" style="display:none">
+  <div class="modal" style="width:100%;max-width:440px">
+    <div style="padding:18px">
+      <div style="font-size:15px;font-weight:700;color:var(--tx);margin-bottom:8px">👥 加入 CRM</div>
+      <div id="crmConfirmMsg" style="font-size:13px;color:var(--tx2);line-height:1.6;margin-bottom:14px"></div>
+      <div style="display:flex;gap:8px">
+        <button id="crmConfirmYes" class="btn btn-primary" style="flex:1">是，加入 CRM</button>
+        <button onclick="closeCRMConfirm()" class="btn btn-ghost" style="flex:1">否，跳過</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── Supplier Modal ─────────────────────────── -->
 <div class="overlay" id="supOverlay" onclick="closeSupModal(event)" style="display:none">
   <div class="modal" style="width:100%;max-width:700px;max-height:94vh;overflow-y:auto">
