@@ -826,25 +826,16 @@ img{display:block}
               style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px;resize:vertical;font-family:inherit;box-sizing:border-box;outline:none;min-height:42px"></textarea>
           </div>
         </div>
+        <!-- ── PRODUCT MODAL TABS ── -->
+        <div style="display:flex;gap:0;margin-bottom:12px;border-bottom:1px solid var(--br)">
+          <button id="pmtab-btn-info" onclick="switchProdTab('info')" style="padding:7px 18px;font-size:12px;font-weight:600;border:none;border-bottom:2px solid var(--ac);background:none;color:var(--ac);cursor:pointer">📋 Product Info</button>
+          <button id="pmtab-btn-cost" onclick="switchProdTab('cost')" style="padding:7px 18px;font-size:12px;font-weight:600;border:none;border-bottom:2px solid transparent;background:none;color:var(--tx3);cursor:pointer">💰 Cost &amp; Margin</button>
+        </div>
+
+        <!-- TAB 1: Product Info -->
+        <div id="pmtab-info" style="display:block">
         <!-- ── OTHER FIELDS ──────────────────────────────── -->
         <div style="font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid var(--br);margin-top:4px">Product Details</div>
-        <!-- Supplier 1 + Cost 1 + Supplier 2 + Cost 2 -->
-        <div class="sup-cost-row" style="display:grid;grid-template-columns:1fr 90px 1fr 90px;gap:8px;margin-bottom:9px">
-          <div class="field"><label style="font-size:11px">Supplier 1</label>
-            <select id="pm-sup1" style="width:100%;padding:7px 8px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
-              <option value="">— None —</option>
-            </select>
-          </div>
-          <div class="field"><label style="font-size:11px">Cost 1 (USD)</label>
-            <input id="pm-cost1" type="number" min="0" step="0.01" placeholder="0.00" autocomplete="off" style="padding:7px 5px;font-size:12px;width:100%"></div>
-          <div class="field"><label style="font-size:11px">Supplier 2</label>
-            <select id="pm-sup2" style="width:100%;padding:7px 8px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
-              <option value="">— None —</option>
-            </select>
-          </div>
-          <div class="field"><label style="font-size:11px">Cost 2 (USD)</label>
-            <input id="pm-cost2" type="number" min="0" step="0.01" placeholder="0.00" autocomplete="off" style="padding:7px 5px;font-size:12px;width:100%"></div>
-        </div>
         <!-- Tooling + COO -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:9px">
           <div class="field"><label>Tooling</label><input id="pm-tooling" placeholder="e.g. COMART Vietnam" autocomplete="off"></div>
@@ -864,6 +855,105 @@ img{display:block}
           <div class="field"><label>Product Dimension w/P (cm)</label><input id="pm-pkgdim" placeholder="e.g. 12 × 7 × 5" autocomplete="off"></div>
           <div class="field"><label>Product Weight w/P (g)</label><input id="pm-pkgweight" type="number" min="0" step="0.1" placeholder="e.g. 380" autocomplete="off"></div>
         </div>
+        </div><!-- end pmtab-info -->
+
+        <!-- TAB 2: Cost & Margin -->
+        <div id="pmtab-cost" style="display:none">
+          <!-- 1K Price display -->
+          <div style="background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px">
+            <div style="font-size:11px;color:var(--tx3);font-weight:600">1K BASE PRICE</div>
+            <div style="font-size:20px;font-weight:700;color:var(--ac)" id="pm-cost-price-display">—</div>
+            <div style="font-size:11px;color:var(--tx3)">USD / 1K pcs</div>
+          </div>
+
+          <!-- Supplier 1 row -->
+          <div style="font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid var(--br)">Supplier 1</div>
+          <div style="display:grid;grid-template-columns:1fr 110px 110px;gap:8px;margin-bottom:10px">
+            <div class="field"><label style="font-size:11px">Supplier 1</label>
+              <select id="pm-sup1" onchange="onSupplierChange(1)" style="width:100%;padding:7px 8px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
+                <option value="">— None —</option>
+              </select>
+            </div>
+            <div class="field"><label style="font-size:11px">Curr 1</label>
+              <select id="pm-curr1" onchange="calcGrossMargin()" style="width:100%;padding:7px 8px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
+                <option value="">—</option>
+                <option value="USD">USD</option>
+                <option value="RMB">RMB</option>
+                <option value="NTD">NTD</option>
+                <option value="VND">VND</option>
+                <option value="JPY">JPY</option>
+              </select>
+            </div>
+            <div class="field"><label style="font-size:11px">Cost 1</label>
+              <input id="pm-cost1" type="number" min="0" step="0.01" placeholder="0.00" autocomplete="off" oninput="calcGrossMargin()" style="padding:7px 5px;font-size:12px;width:100%">
+            </div>
+          </div>
+          <!-- Supplier 2 row -->
+          <div style="font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid var(--br)">Supplier 2</div>
+          <div style="display:grid;grid-template-columns:1fr 110px 110px;gap:8px;margin-bottom:14px">
+            <div class="field"><label style="font-size:11px">Supplier 2</label>
+              <select id="pm-sup2" onchange="onSupplierChange(2)" style="width:100%;padding:7px 8px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
+                <option value="">— None —</option>
+              </select>
+            </div>
+            <div class="field"><label style="font-size:11px">Curr 2</label>
+              <select id="pm-curr2" onchange="calcGrossMargin()" style="width:100%;padding:7px 8px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px">
+                <option value="">—</option>
+                <option value="USD">USD</option>
+                <option value="RMB">RMB</option>
+                <option value="NTD">NTD</option>
+                <option value="VND">VND</option>
+                <option value="JPY">JPY</option>
+              </select>
+            </div>
+            <div class="field"><label style="font-size:11px">Cost 2</label>
+              <input id="pm-cost2" type="number" min="0" step="0.01" placeholder="0.00" autocomplete="off" oninput="calcGrossMargin()" style="padding:7px 5px;font-size:12px;width:100%">
+            </div>
+          </div>
+
+          <!-- Gross Margin display -->
+          <div style="background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:14px;margin-bottom:14px">
+            <div style="font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Gross Margin vs 1K Price</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="text-align:center;padding:10px;background:var(--bg);border-radius:8px;border:1px solid var(--br)">
+                <div style="font-size:10px;color:var(--tx3);margin-bottom:4px">Supplier 1</div>
+                <div id="pm-gm1" style="font-size:22px;font-weight:700;color:var(--grn)">—</div>
+                <div style="font-size:10px;color:var(--tx3)" id="pm-gm1-cost-usd"></div>
+              </div>
+              <div style="text-align:center;padding:10px;background:var(--bg);border-radius:8px;border:1px solid var(--br)">
+                <div style="font-size:10px;color:var(--tx3);margin-bottom:4px">Supplier 2</div>
+                <div id="pm-gm2" style="font-size:22px;font-weight:700;color:var(--grn)">—</div>
+                <div style="font-size:10px;color:var(--tx3)" id="pm-gm2-cost-usd"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 試算區（不存入資料庫） -->
+          <div style="border:1px dashed var(--br2);border-radius:10px;padding:14px">
+            <div style="font-size:10px;font-weight:700;color:var(--tx3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">🧮 What-If Calculator <span style="font-weight:400;font-size:10px">(not saved)</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px">
+              <div>
+                <label style="font-size:11px;color:var(--tx3)">Trial Cost 1</label>
+                <input id="pm-trial1" type="number" min="0" step="0.01" placeholder="enter trial cost" autocomplete="off" oninput="calcGrossMargin()" style="width:100%;padding:7px 8px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--tx3)">Trial Cost 2</label>
+                <input id="pm-trial2" type="number" min="0" step="0.01" placeholder="enter trial cost" autocomplete="off" oninput="calcGrossMargin()" style="width:100%;padding:7px 8px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:12px;box-sizing:border-box">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px">
+                <div style="font-size:10px;color:var(--tx3);margin-bottom:2px">Trial Gross% 1</div>
+                <div id="pm-tgm1" style="font-size:18px;font-weight:700;color:#f59e0b">—</div>
+              </div>
+              <div style="text-align:center;padding:8px;background:var(--s2);border-radius:8px">
+                <div style="font-size:10px;color:var(--tx3);margin-bottom:2px">Trial Gross% 2</div>
+                <div id="pm-tgm2" style="font-size:18px;font-weight:700;color:#f59e0b">—</div>
+              </div>
+            </div>
+          </div>
+        </div><!-- end pmtab-cost -->
+
       </div>
     </div>
 
@@ -1627,7 +1717,12 @@ function switchTab(tab){
   if(tab==='categories') renderCategoryList();
   if(tab==='users'){ renderUsersPage(); renderLogTable(); }
   if(tab==='files'){ loadAndRenderFiles(); }
-  if(tab==='ai'){ showAITab('translate'); setTimeout(()=>{ const i=document.getElementById('xlat-input'); if(i) i.focus(); },150); }
+  if(tab==='ai'){
+    requestAnimationFrame(()=>{
+      showAITab('translate');
+      setTimeout(()=>{ const i=document.getElementById('xlat-input'); if(i) i.focus(); },150);
+    });
+  }
   if(tab==='crm'){ showCRMTab('accounts'); }
   // Keep nav visible for all home tabs
   document.getElementById('logoArea').style.display='flex';
@@ -1924,9 +2019,14 @@ function copyProd(){
       document.getElementById('pm-coo').value=src.coo||'';
       populateSupplierDropdowns();
       document.getElementById('pm-sup1').value=src.supplier1||'';
+      document.getElementById('pm-curr1').value=src.curr1||'';
       document.getElementById('pm-cost1').value=src.cost1||'';
       document.getElementById('pm-sup2').value=src.supplier2||'';
+      document.getElementById('pm-curr2').value=src.curr2||'';
       document.getElementById('pm-cost2').value=src.cost2||'';
+      switchProdTab('info');
+      document.getElementById('pm-trial1').value=src.cost1||'';
+      document.getElementById('pm-trial2').value=src.cost2||'';
       document.getElementById('pm-dim').value=src.dim||'';
       document.getElementById('pm-weight').value=src.weight||'';
       document.getElementById('pm-pkgdim').value=src.pkgdim||'';
@@ -2028,9 +2128,11 @@ const PROD_XLSX_COLS = [
   { key: 'cat2code',      label: 'Category 2 Code' },
   { key: 'defaultPrice',  label: 'Default Price (1K USD)' },
   { key: 'supplier1',     label: 'Supplier 1 Code' },
-  { key: 'cost1',         label: 'Cost 1 (USD)' },
+  { key: 'curr1',         label: 'Curr 1' },
+  { key: 'cost1',         label: 'Cost 1' },
   { key: 'supplier2',     label: 'Supplier 2 Code' },
-  { key: 'cost2',         label: 'Cost 2 (USD)' },
+  { key: 'curr2',         label: 'Curr 2' },
+  { key: 'cost2',         label: 'Cost 2' },
   { key: 'material',      label: 'Material' },
   { key: 'interface',     label: 'Interface' },
   { key: 'tooling',       label: 'Tooling' },
@@ -2067,7 +2169,7 @@ async function downloadProductTemplate() {
     const p = PRODUCTS[0];
     const c1 = CATEGORIES.find(c => c.id === p.catId);
     const c2 = CATEGORIES.find(c => c.id === p.catId2);
-    ws.addRow([p.series||'',c1?.code||'',c2?.code||'',p.defaultPrice||'',p.supplier1||'',p.cost1||'',p.supplier2||'',p.cost2||'',p.material||'',p.interface||'',p.tooling||'',p.coo||'',p.dim||'',p.weight||'',p.pkgdim||'',p.pkgweight||'',
+    ws.addRow([p.series||'',c1?.code||'',c2?.code||'',p.defaultPrice||'',p.supplier1||'',p.curr1||'',p.cost1||'',p.supplier2||'',p.curr2||'',p.cost2||'',p.material||'',p.interface||'',p.tooling||'',p.coo||'',p.dim||'',p.weight||'',p.pkgdim||'',p.pkgweight||'',
       p.name?.en||'',p.features?.en||'',p.remark||'',
       p.name?.['zh-TW']||'',p.name?.['zh-CN']||'',p.name?.vi||'',p.name?.ja||'',
       p.features?.['zh-TW']||'',p.features?.['zh-CN']||'',p.features?.vi||'',p.features?.ja||'']);
@@ -2111,8 +2213,10 @@ async function importProductsXLSX(event) {
       const catId2=cat2code?(CATEGORIES.find(c=>c.code===cat2code)?.id||null):null;
       const price=parseFloat(getVal('defaultPrice'))||null, remark=getVal('remark')||null;
       const supplier1=getVal('supplier1')||null;
+      const curr1=getVal('curr1')||null;
       const cost1=parseFloat(getVal('cost1'))||null;
       const supplier2=getVal('supplier2')||null;
+      const curr2=getVal('curr2')||null;
       const cost2=parseFloat(getVal('cost2'))||null;
       const dim=getVal('dim')||null;
       const weight=parseFloat(getVal('weight'))||null;
@@ -2127,7 +2231,7 @@ async function importProductsXLSX(event) {
       const existing=PRODUCTS.find(p=>p.series===series);
       const shouldUpdate=document.getElementById('importUpdateExisting')?.checked!==false;
       if(existing && !shouldUpdate){skipped++;continue;}
-      const prod={id:existing?.id||uid(),series,name,features,catId,catId2,defaultPrice:price,supplier1,cost1,supplier2,cost2,material,interface:prodInterface,tooling,coo,dim,weight,pkgdim,pkgweight,remark,img:existing?.img||null,createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()};
+      const prod={id:existing?.id||uid(),series,name,features,catId,catId2,defaultPrice:price,supplier1,curr1,cost1,supplier2,curr2,cost2,material,interface:prodInterface,tooling,coo,dim,weight,pkgdim,pkgweight,remark,img:existing?.img||null,createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()};
       if(existing){PRODUCTS=PRODUCTS.map(p=>p.series===series?prod:p);updated++;}
       else{PRODUCTS.push(prod);added++;}
       await saveOneP(prod);
@@ -2234,9 +2338,14 @@ function openProdModal(id){
   document.getElementById('pm-remark').value=p?.remark||'';
   populateSupplierDropdowns();
   document.getElementById('pm-sup1').value=p?.supplier1||'';
+  document.getElementById('pm-curr1').value=p?.curr1||'';
   document.getElementById('pm-cost1').value=p?.cost1||'';
   document.getElementById('pm-sup2').value=p?.supplier2||'';
+  document.getElementById('pm-curr2').value=p?.curr2||'';
   document.getElementById('pm-cost2').value=p?.cost2||'';
+  switchProdTab('info');
+  document.getElementById('pm-trial1').value=p?.cost1||'';
+  document.getElementById('pm-trial2').value=p?.cost2||'';
   // Image
   const zone=document.getElementById('imgZone');
   const ph=document.getElementById('imgPh');
@@ -2490,8 +2599,10 @@ async function saveProd(){
   const tooling=document.getElementById('pm-tooling').value.trim()||null;
   const coo=document.getElementById('pm-coo').value.trim()||null;
   const supplier1=document.getElementById('pm-sup1').value||null;
+  const curr1=document.getElementById('pm-curr1').value||null;
   const cost1=parseFloat(document.getElementById('pm-cost1').value)||null;
   const supplier2=document.getElementById('pm-sup2').value||null;
+  const curr2=document.getElementById('pm-curr2').value||null;
   const cost2=parseFloat(document.getElementById('pm-cost2').value)||null;
   const dim=document.getElementById('pm-dim').value.trim()||null;
   const weight=parseFloat(document.getElementById('pm-weight').value)||null;
@@ -2503,7 +2614,7 @@ async function saveProd(){
   const catId2 = document.getElementById('pm-cat2')?.value || null;
   const prod={
     id:prodId,series,name,features,img:imgVal,img2:imgVal2,img3:imgVal3,catId:catId||null,catId2:catId2||null,
-    defaultPrice,material,interface:prodInterface,tooling,coo,supplier1,cost1,supplier2,cost2,dim,weight,pkgdim,pkgweight,remark,
+    defaultPrice,material,interface:prodInterface,tooling,coo,supplier1,curr1,cost1,supplier2,curr2,cost2,dim,weight,pkgdim,pkgweight,remark,
     createdAt:existing?.createdAt||Date.now(),updatedAt:Date.now()
   };
   // Cache base64 to localStorage NOW (before upload changes img to URL)
@@ -4318,6 +4429,77 @@ function populateSupplierDropdowns() {
         .map(s=>`<option value="${s.code}">${s.code} — ${escHtml(s.name)}</option>`).join('');
     if(cur) sel.value=cur;
   });
+}
+
+// ── Product Modal Tab Switch ─────────────────────────
+function switchProdTab(tab) {
+  ['info','cost'].forEach(t=>{
+    const pane=document.getElementById('pmtab-'+t);
+    const btn=document.getElementById('pmtab-btn-'+t);
+    if(pane) pane.style.display = t===tab ? 'block' : 'none';
+    if(btn){
+      btn.style.borderBottom = t===tab ? '2px solid var(--ac)' : '2px solid transparent';
+      btn.style.color = t===tab ? 'var(--ac)' : 'var(--tx3)';
+    }
+  });
+  if(tab==='cost'){
+    // sync price display
+    const price=parseFloat(document.getElementById('pm-price')?.value)||0;
+    const el=document.getElementById('pm-cost-price-display');
+    if(el) el.textContent = price ? price.toFixed(5)+' USD' : '—';
+    calcGrossMargin();
+  }
+}
+
+// ── Auto-fill Curr when Supplier selected ───────────
+function onSupplierChange(n) {
+  const supCode=document.getElementById('pm-sup'+n)?.value;
+  const sup=SUPPLIERS.find(s=>s.code===supCode);
+  const currSel=document.getElementById('pm-curr'+n);
+  if(currSel && sup?.currency) {
+    // only auto-fill if valid option
+    const opts=['USD','RMB','NTD','VND','JPY'];
+    if(opts.includes(sup.currency)) currSel.value=sup.currency;
+  }
+  calcGrossMargin();
+}
+
+// ── Gross Margin Calculator ───────────────────────────
+function calcGrossMargin() {
+  const rates={USD:1, NTD:1/(SETTINGS.rateNTD||32.5), RMB:1/(SETTINGS.rateRMB||7.25), VND:1/(SETTINGS.rateVND||25000), JPY:1/(SETTINGS.rateJPY||150)};
+  const price=parseFloat(document.getElementById('pm-price')?.value)||0;
+  const el=document.getElementById('pm-cost-price-display');
+  if(el) el.textContent = price ? price.toFixed(5)+' USD' : '—';
+
+  function gmStr(costRaw, curr, elGm, elCostUsd) {
+    const cost=parseFloat(costRaw)||0;
+    const rate=rates[curr]||1;
+    const costUsd=cost*rate;
+    if(!price||!cost||!curr){
+      if(elGm) elGm.textContent='—';
+      if(elCostUsd) elCostUsd.textContent='';
+      return;
+    }
+    const gm=(price-costUsd)/price*100;
+    if(elGm){
+      elGm.textContent=gm.toFixed(1)+'%';
+      elGm.style.color=gm>=30?'var(--grn)':gm>=15?'#f59e0b':'#ef4444';
+    }
+    if(elCostUsd) elCostUsd.textContent='Cost: '+costUsd.toFixed(5)+' USD';
+  }
+
+  gmStr(document.getElementById('pm-cost1')?.value, document.getElementById('pm-curr1')?.value,
+        document.getElementById('pm-gm1'), document.getElementById('pm-gm1-cost-usd'));
+  gmStr(document.getElementById('pm-cost2')?.value, document.getElementById('pm-curr2')?.value,
+        document.getElementById('pm-gm2'), document.getElementById('pm-gm2-cost-usd'));
+
+  // Trial calculator
+  const t1=document.getElementById('pm-trial1')?.value;
+  const t2=document.getElementById('pm-trial2')?.value;
+  gmStr(t1||document.getElementById('pm-cost1')?.value, document.getElementById('pm-curr1')?.value,
+        document.getElementById('pm-tgm1'), null);
+  gmStr(t2||document.getElementById('pm-cost2')?.value, document.getElementById('pm-curr2')?.value,
+        document.getElementById('pm-tgm2'), null);
 }
 
 function renderSettingsPage(){
@@ -7168,7 +7350,14 @@ init();
       <div class="field"><label>Payment Terms</label>
         <input id="sup-payment" placeholder="e.g. T/T 30%+70%" autocomplete="off"></div>
       <div class="field"><label>Currency</label>
-        <input id="sup-currency" placeholder="e.g. USD, VND" autocomplete="off"></div>
+        <select id="sup-currency" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:13px">
+          <option value="">— Select —</option>
+          <option value="USD">USD — US Dollar</option>
+          <option value="RMB">RMB — Chinese Yuan</option>
+          <option value="NTD">NTD — Taiwan Dollar</option>
+          <option value="VND">VND — Vietnamese Dong</option>
+          <option value="JPY">JPY — Japanese Yen</option>
+        </select></div>
       <div class="field"><label>Incoterms</label>
         <input id="sup-inco" placeholder="e.g. EXW, FOB" autocomplete="off"></div>
       <div class="field"><label>MOQ</label>
